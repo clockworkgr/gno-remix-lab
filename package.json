@@ -24,7 +24,7 @@
     "@remixlab/spec": "workspace:*",
     "@types/node": "24.10.1",
     "typescript": "5.9.3",
-    "vitest": "3.2.4",
+    "vitest": "4.1.11",
     "@remixlab/wallet": "workspace:*"
   }
 }

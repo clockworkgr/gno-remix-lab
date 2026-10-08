@@ -20,6 +20,9 @@ importers:
       '@remixlab/spec':
         specifier: workspace:*
         version: link:packages/spec
+      '@remixlab/wallet':
+        specifier: workspace:*
+        version: link:packages/wallet
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1
@@ -55,6 +58,12 @@ importers:
       zod:
         specifier: 4.1.12
         version: 4.1.12
+
+  packages/wallet:
+    dependencies:
+      '@remixlab/chain':
+        specifier: workspace:*
+        version: link:../chain
 
 packages:
 

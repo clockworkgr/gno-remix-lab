@@ -8,11 +8,14 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "gen": "node packages/generator/src/cli.ts",
     "regen:fixtures": "node scripts/regen-fixtures.ts",
     "check:generated": "node scripts/check-generated.ts",
-    "fixtures:wire": "cd tests/integration && REMIX_FIXTURE_DIR=$PWD/../../packages/chain/test/fixtures go test ./... -run TestScenarios/wire -count=1"
+    "fixtures:wire": "cd tests/integration && REMIX_FIXTURE_DIR=$PWD/../../packages/chain/test/fixtures go test ./... -run TestScenarios/wire -count=1",
+    "web:dev": "pnpm --filter @remixlab/web dev",
+    "web:build": "pnpm --filter @remixlab/web build",
+    "web:e2e": "pnpm --filter @remixlab/web test:e2e"
   },
   "devDependencies": {
     "@remixlab/chain": "workspace:*",

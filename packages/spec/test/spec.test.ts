@@ -54,7 +54,7 @@ describe("parseProject", () => {
   });
   it("rejects keyword package names", () => {
     const p = defaultProject();
-    p.app.pkgPath = "gno.land/r/remixlab/default";
+    p.app.pkgPath = "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/default";
     expect(parseProject(p).ok).toBe(false);
   });
   it("rejects a percentage quorum on public polls", () => {

@@ -21,23 +21,23 @@ describe("resolve", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.lock.components.map((c) => `${c.id}=${c.pkgPath}`)).toEqual([
-      "ballots=gno.land/p/remixlab/ballots/v1",
-      "core=gno.land/p/remixlab/core/v1",
-      "membership=gno.land/p/remixlab/membership/v1",
-      "policies=gno.land/p/remixlab/policies/v1",
-      "render=gno.land/p/remixlab/render/v1",
+      "ballots=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1",
+      "core=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1",
+      "membership=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/membership/v1",
+      "policies=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1",
+      "render=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1",
     ]);
     expect(r.value.lock.thirdParty).toEqual(["gno.land/p/nt/avl/v0"]);
     expect(r.value.supported).toBe(false); // draft components
   });
 
   it("refuses draft and unpublished components on the public testnet", () => {
-    const r = resolve(spec((p) => (p.network = "pearl-1")), catalog);
+    const r = resolve(spec((p) => (p.network = "onyx-1")), catalog);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     const messages = r.diagnostics.map((d) => d.message);
-    expect(messages).toContain("ballots@1.0.0 is a draft and cannot be used on pearl-1");
-    expect(messages).toContain("ballots@1.0.0 is not published on pearl-1");
+    expect(messages).toContain("ballots@1.0.0 is a draft and cannot be used on onyx-1");
+    expect(messages).toContain("ballots@1.0.0 is not published on onyx-1");
   });
 
   it("reports third-party packages missing from the network", () => {

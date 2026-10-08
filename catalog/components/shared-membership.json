@@ -9,9 +9,9 @@
     "membership.read/v1"
   ],
   "requires": [],
-  "source": "gno/r/remixlab/sharedmembers",
+  "source": "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers",
   "packages": {
-    "local-dev": "gno.land/r/remixlab/sharedmembers"
+    "local-dev": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers"
   },
   "dependencies": [],
   "componentDependencies": [

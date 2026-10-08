@@ -9,9 +9,9 @@
     "submission.read/v1"
   ],
   "requires": [],
-  "source": "gno/p/remixlab/forms/v1",
+  "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/forms/v1",
   "packages": {
-    "local-dev": "gno.land/p/remixlab/forms/v1"
+    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/forms/v1"
   },
   "dependencies": [
     "gno.land/p/nt/avl/v0"

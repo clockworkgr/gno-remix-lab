@@ -11,9 +11,9 @@
   "requires": [
     "membership.read/v1"
   ],
-  "source": "gno/p/remixlab/policies/v1",
+  "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1",
   "packages": {
-    "local-dev": "gno.land/p/remixlab/policies/v1"
+    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1"
   },
   "dependencies": [
     "gno.land/p/nt/avl/v0"

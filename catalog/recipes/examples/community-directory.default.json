@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recipe": { "id": "community-directory", "version": "1.0.0" },
-  "app": { "pkgPath": "gno.land/r/remixlab/directory", "title": "Community directory" },
+  "app": { "pkgPath": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory", "title": "Community directory" },
   "network": "local-dev",
   "config": {
     "membership": { "joinMode": "invitation", "maxMembers": 50 },

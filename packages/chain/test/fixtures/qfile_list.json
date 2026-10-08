@@ -4,7 +4,7 @@
     "jsonrpc": "2.0",
     "method": "abci_query",
     "params": {
-      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbA==",
+      "data": "Z25vLmxhbmQvci9nMWxua3l0ZnFjandsbHdzNjNndmYwbXY5eXQwNGFzd3k0eTlhbWhtL3JlbWl4bGFiL2NsdWJwb2xs",
       "height": "0",
       "path": "vm/qfile",
       "prove": false

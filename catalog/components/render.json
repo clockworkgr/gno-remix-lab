@@ -9,9 +9,9 @@
     "view.markdown/v1"
   ],
   "requires": [],
-  "source": "gno/p/remixlab/render/v1",
+  "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1",
   "packages": {
-    "local-dev": "gno.land/p/remixlab/render/v1"
+    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1"
   },
   "dependencies": [],
   "componentDependencies": [

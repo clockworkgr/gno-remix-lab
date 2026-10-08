@@ -38,7 +38,7 @@ describe("generate", () => {
     ["contest", genContest],
   ])("reproduces the checked-in %s realm byte for byte", (name, g) => {
     const out = g();
-    const dir = join(root, "gno/r/remixlab", name);
+    const dir = join(root, "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab", name);
     for (const [file, content] of Object.entries({ ...out.runtime, ...out.tests })) {
       expect(readFileSync(join(dir, file), "utf8"), file).toBe(content);
     }

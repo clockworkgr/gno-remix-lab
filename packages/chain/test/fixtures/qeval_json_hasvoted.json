@@ -4,7 +4,7 @@
     "jsonrpc": "2.0",
     "method": "abci_query",
     "params": {
-      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbC5IYXNWb3RlZCgxLCAiZzFrcXV0Mjg0N3puZmVyMzA2NWR0MDMzOGRteDNtcnlxamF3OWYyaiIp",
+      "data": "Z25vLmxhbmQvci9nMWxua3l0ZnFjandsbHdzNjNndmYwbXY5eXQwNGFzd3k0eTlhbWhtL3JlbWl4bGFiL2NsdWJwb2xsLkhhc1ZvdGVkKDEsICJnMTJlN3FsMzh2MHB0NW55N2FzdDNkZ2ZuemE1ZTg4c2ZwbDhsenR5Iik=",
       "height": "0",
       "path": "vm/qeval_json",
       "prove": false

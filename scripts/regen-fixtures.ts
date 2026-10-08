@@ -7,9 +7,9 @@ import { loadCatalog } from "@remixlab/spec/node";
 import { generate } from "@remixlab/generator";
 
 export const FIXTURES: Array<{ project: string; dir: string }> = [
-  { project: "catalog/recipes/examples/club-poll.default.json", dir: "gno/r/remixlab/clubpoll" },
-  { project: "catalog/recipes/examples/community-directory.default.json", dir: "gno/r/remixlab/directory" },
-  { project: "catalog/recipes/examples/demo-contest.default.json", dir: "gno/r/remixlab/contest" },
+  { project: "catalog/recipes/examples/club-poll.default.json", dir: "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll" },
+  { project: "catalog/recipes/examples/community-directory.default.json", dir: "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory" },
+  { project: "catalog/recipes/examples/demo-contest.default.json", dir: "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/contest" },
 ];
 
 const root = join(import.meta.dirname, "..");

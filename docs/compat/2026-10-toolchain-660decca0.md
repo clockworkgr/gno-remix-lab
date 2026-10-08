@@ -85,6 +85,14 @@ Recorded 7 October 2026 (RML-01, partial).
     handles both.
 12. **`tx` lookups work with `tx_index: off`** on the in-memory node.
     Public nodes may differ; check on the target network.
+13. **Onyx reports a missing package differently.** `onyx-1` (node
+    v1.0.0-rc.0, `tx_index: off`) answers `vm/qfile` for an unknown path
+    with `/vm.InvalidPackageError` `package "…" is not available`; the
+    pinned toolchain answers `/vm.InvalidPkgPathError`. The adapter treats
+    both as "not deployed" (fixture `onyx_qfile_missing.json`). Onyx
+    enforces namespaces through `gno.land/r/sys/names` and has CLA
+    enforcement configured (`gno.land/r/sys/cla`); gas price is 1 ugnot per
+    1000 gas and storage 100 ugnot per byte.
 
 ## Measured costs (in-memory node, default params)
 
@@ -115,10 +123,10 @@ polls); that is the benchmark gate (RML-18).
 
 ## Still open for RML-01
 
-- Deploy and call on the selected public testnet (Pearl/Test16 `pearl-1`
-  per the plan) and confirm accepted file types and namespace rules there.
+- Deploy and call on the public testnet. The target is now Onyx
+  (`onyx-1`), with packages under the maintainer's address namespace;
+  `scripts/deploy.sh` and `scripts/verify-deploy.ts` are ready.
 - Adena: add-package and call messages from the browser extension.
-- Compare the runtime digest of a deployed package end to end against the
-  live node (file listing and byte-exact readback are verified;
-  `ChainReader.readPackage` does the walk).
+- Run `scripts/verify-deploy.ts` after the Onyx deploy (byte-exact
+  readback of every runtime file).
 - Measure gas/storage at configured limits and decide gas-wanted defaults.

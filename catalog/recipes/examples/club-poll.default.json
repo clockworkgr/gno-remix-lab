@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recipe": { "id": "club-poll", "version": "1.0.0" },
-  "app": { "pkgPath": "gno.land/r/remixlab/clubpoll", "title": "Club poll" },
+  "app": { "pkgPath": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll", "title": "Club poll" },
   "network": "local-dev",
   "config": {
     "membership": { "joinMode": "invitation", "maxMembers": 100 },

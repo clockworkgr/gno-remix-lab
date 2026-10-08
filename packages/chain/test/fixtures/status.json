@@ -13,7 +13,7 @@
       "node_info": {
         "channels": "QCAhIiMwUA==",
         "moniker": "fixture-host",
-        "net_address": "g1rxuq7z0774tyu9ctjn93nv66h3mcrvgvacdqnm@127.0.0.1:0",
+        "net_address": "g1z4jxeks6602f65ksr5dlk7n3n0lrwzdaktyt3h@127.0.0.1:0",
         "network": "tendermint_test",
         "other": {
           "rpc_address": "tcp://127.0.0.1:0",
@@ -51,16 +51,16 @@
       },
       "sync_info": {
         "catching_up": false,
-        "latest_app_hash": "qiVggLIZ4oGD7uutYe+/SsMLcVhDBuShWc3oCWiBzg0=",
-        "latest_block_hash": "3V2bkxQFRHoaVw1wxzGyV6tSGoSz3oMa5mBY66PrlPM=",
-        "latest_block_height": "20",
-        "latest_block_time": "2026-10-08T01:57:14.255209Z"
+        "latest_app_hash": "6toFrwA5zyDernaFYZkW8hPQ24sEWEiSDRSerl6cmSY=",
+        "latest_block_hash": "2iDJ8QwiRzgGrTJ/8rO3fifYPnB3/twpqDYtMfswF6w=",
+        "latest_block_height": "17",
+        "latest_block_time": "2026-10-08T03:24:04.349502Z"
       },
       "validator_info": {
-        "address": "g1586u98kez8etvxuyqveszln7zktug0kjv4ah8s",
+        "address": "g1czc7vgrvrxr4k3sv6ngv6kjwgyfk9yt9jkp0vh",
         "pub_key": {
           "@type": "/tm.PubKeyEd25519",
-          "value": "Wu3+rc20yAk190KyoJky+FNB9nSUpBQBdb7PQkpmrYU="
+          "value": "HaKAC4oA4ekwfuZF73ihUHV9A0X/nk6RPW+uJt8N8VE="
         },
         "voting_power": "10"
       }

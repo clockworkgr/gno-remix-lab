@@ -10,7 +10,7 @@ import type { Decoded, Schema } from "./values.ts";
 export const VIEW_SCHEMA_VERSION = 1;
 
 export interface ViewPackages {
-  /** e.g. "gno.land/p/remixlab/core/v1" */
+  /** e.g. "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1" */
   core: string;
   policies?: string;
   forms?: string;

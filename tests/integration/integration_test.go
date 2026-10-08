@@ -68,7 +68,7 @@ func cmdSleep(ts *testscript.TestScript, neg bool, args []string) {
 
 // cmdStageRuntime copies the files that belong on chain (gnomod.toml and
 // non-test .gno files) from a package directory into a new directory, e.g.
-// `stageruntime $WORK/gno/r/remixlab/clubpoll $WORK/deploy/clubpoll`.
+// `stageruntime $WORK/gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll $WORK/deploy/clubpoll`.
 // `gnokey maketx addpkg -pkgdir` uploads every .gno file, tests included, so
 // deployments must start from a staged runtime bundle.
 func cmdStageRuntime(ts *testscript.TestScript, neg bool, args []string) {

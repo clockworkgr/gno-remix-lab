@@ -48,12 +48,12 @@ const sorted = (o: Record<string, unknown>) => JSON.stringify(Object.fromEntries
 const rpc = new ReplayTransport();
 const reader = new ChainReader(rpc, { network: "local-dev", now: () => new Date(0) });
 const v = viewSchemas({
-  core: "gno.land/p/remixlab/core/v1",
-  policies: "gno.land/p/remixlab/policies/v1",
-  forms: "gno.land/p/remixlab/forms/v1",
+  core: "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1",
+  policies: "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1",
+  forms: "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/forms/v1",
 });
-const POLL = "gno.land/r/remixlab/clubpoll";
-const DIR = "gno.land/r/remixlab/directory";
+const POLL = "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll";
+const DIR = "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory";
 const addrOf = (name: string) => {
   const data = atob((fixture(name).request.params as { data: string }).data);
   return /"(g1[0-9a-z]{38})"/.exec(data)![1]!;
@@ -141,20 +141,26 @@ describe("reads against recorded node responses", () => {
   });
 
   it("reports a missing package as InvalidPkgPathError", async () => {
-    const e = await reader.read("gno.land/r/remixlab/nothere", "Render", [""], [v.string]).catch((x) => x);
+    const e = await reader.read("gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/nothere", "Render", [""], [v.string]).catch((x) => x);
     expect(e).toBeInstanceOf(ChainError);
     expect(e.type).toBe("/vm.InvalidPkgPathError");
-    expect(e.message).toBe("package not found: gno.land/r/remixlab/nothere");
+    expect(e.message).toBe("package not found: gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/nothere");
+  });
+
+  it("treats onyx-1's InvalidPackageError as a missing package", async () => {
+    // Recorded from onyx-1 (v1.0.0-rc.0); the pinned toolchain answers
+    // InvalidPkgPathError instead.
+    expect(await reader.files("gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/onyxmissing")).toBeNull();
   });
 
   it("renders pages and reads back deployed source byte for byte", async () => {
     const page = (await reader.render(POLL, "polls/1")).value;
     expect(page).toContain("# Venue");
-    expect(page).toContain("[vote](/r/remixlab/clubpoll$help&func=Vote&id=1&choice=1)");
+    expect(page).toContain("[vote](/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll$help&func=Vote&id=1&choice=1)");
 
     expect(await reader.files(POLL)).toEqual(["app.gno", "descriptor.gno", "gnomod.toml", "render.gno"]);
     const onChain = await reader.query("vm/qfile", `${POLL}/descriptor.gno`);
-    expect(onChain).toBe(readFileSync(join(root, "gno/r/remixlab/clubpoll/descriptor.gno"), "utf8"));
+    expect(onChain).toBe(readFileSync(join(root, "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll/descriptor.gno"), "utf8"));
   });
 });
 
@@ -276,7 +282,7 @@ describe("decoder limits", () => {
 describe("view schemas match the Gno sources", () => {
   // Field names (case-insensitively) and Go types, in declaration order.
   const goStruct = (file: string, name: string): Array<[string, string]> => {
-    const src = readFileSync(join(root, "gno/p/remixlab", file), "utf8");
+    const src = readFileSync(join(root, "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab", file), "utf8");
     const body = new RegExp(`type ${name} struct \\{([^}]*)\\}`).exec(src)![1]!;
     return body
       .split("\n")
@@ -320,9 +326,9 @@ describe("view schemas match the Gno sources", () => {
 
 describe("callExpr", () => {
   it("encodes arguments as literals", () => {
-    expect(callExpr(POLL, "Poll", [1])).toBe("gno.land/r/remixlab/clubpoll.Poll(1)");
+    expect(callExpr(POLL, "Poll", [1])).toBe("gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.Poll(1)");
     expect(callExpr(POLL, "X", ['a")+evil("', "line\nbreak", 2n ** 64n - 1n, true])).toBe(
-      'gno.land/r/remixlab/clubpoll.X("a\\")+evil(\\"", "line\\nbreak", 18446744073709551615, true)',
+      'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.X("a\\")+evil(\\"", "line\\nbreak", 18446744073709551615, true)',
     );
   });
   it("rejects unexported or malformed names and bad addresses", () => {

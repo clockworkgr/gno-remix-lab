@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "onyx-1",
+  "title": "Onyx testnet",
+  "chainId": "onyx-1",
+  "rpc": "https://rpc.onyx.testnets.gno.land:443",
+  "kind": "testnet",
+  "verified": false,
+  "availablePackages": [
+    "gno.land/p/nt/avl/v0"
+  ],
+  "allowDraftComponents": false
+}

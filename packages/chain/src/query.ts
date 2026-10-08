@@ -38,6 +38,10 @@ export function chainErrorFrom(error: unknown, log: unknown): ChainError {
   return new ChainError(type, trace?.[1] ?? data?.[1] ?? type);
 }
 
+function isMissingPackage(e: ChainError): boolean {
+  return e.type === "/vm.InvalidPkgPathError" || (e.type === "/vm.InvalidPackageError" && / is not available$/.test(e.message));
+}
+
 export interface Observation<T> {
   value: T;
   /** Network profile id the value was read from. */
@@ -130,7 +134,9 @@ export class ChainReader {
       const text = await this.query("vm/qfile", pkgPath);
       return text.split("\n").filter((l) => l !== "");
     } catch (e) {
-      if (e instanceof ChainError && e.type === "/vm.InvalidPkgPathError") return null;
+      // 660decca0 answers InvalidPkgPathError; onyx-1 (v1.0.0-rc.0) answers
+      // InvalidPackageError `package "…" is not available`.
+      if (e instanceof ChainError && isMissingPackage(e)) return null;
       throw e;
     }
   }

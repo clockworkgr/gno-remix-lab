@@ -13,7 +13,7 @@ code, test it, and deploy a realm you control. See
 | Shared membership realm and shared-membership poll (RML-08) | Unit tests and local-node scenario pass |
 | Catalog manifests, project schema, resolver, lockfile (RML-02, 09) | All three recipes |
 | Deterministic generator and export (RML-10) | All three recipes; each reference realm is byte-identical generator output |
-| Toolchain/local-node compatibility (RML-01) | Local node done; public testnet and Adena still open |
+| Toolchain/local-node compatibility (RML-01) | Local node done; Onyx deploy script and readback verifier ready, deploy pending; Adena still open |
 | Chain adapter: transport, typed-value decoding, reads, transaction outcomes, message builders (RML-14) | Tested against wire fixtures recorded from a local node; not yet run against a public node |
 | Web app, validator service, wallet adapter | Not started |
 
@@ -23,8 +23,8 @@ Compatibility findings: `docs/compat/2026-10-toolchain-660decca0.md`.
 
 ```
 gno/                 Gno workspace (gnowork.toml)
-  p/remixlab/*/v1    reusable blocks
-  r/remixlab/*       reference realms
+  p/<maintainer>/remixlab/*/v1   reusable blocks
+  r/<maintainer>/remixlab/*      reference realms
 tests/integration/   local-node scenarios (txtar, in-memory gno.land node)
 catalog/             component manifests, recipes, network profiles, example projects
 packages/spec        project/catalog schemas, canonical JSON, digests
@@ -36,8 +36,8 @@ apps/, services/     web app and validator (planned)
 docs/                compatibility reports, ADRs
 ```
 
-Package paths use the placeholder namespace `remixlab`; the real maintainer
-namespace is resolved at setup.
+Packages live in the maintainer's address namespace,
+`gno.land/{p,r}/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/...`.
 
 ## Running the checks
 
@@ -66,7 +66,7 @@ pnpm gen catalog/recipes/examples/club-poll.default.json out/ --export
 ```
 
 Example projects live in `catalog/recipes/examples/`. The realms
-`gno/r/remixlab/{clubpoll,directory,contest}` are generator output
+`gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/{clubpoll,directory,contest}` are generator output
 (`pnpm regen:fixtures` rewrites them); the `<name>_test.gno` file in each
 holds hand-written adversarial tests. The generator test fails if a realm
 drifts from its project.
@@ -74,3 +74,18 @@ drifts from its project.
 Deploy only the runtime files: `gnokey maketx addpkg -pkgdir` uploads every
 `.gno` file in the directory, tests included. The exported `DEPLOY.md`
 shows how.
+
+## Deploying the maintainer packages
+
+`scripts/deploy.sh` deploys the libraries and reference realms to the Onyx
+testnet (`onyx-1`) from the `mainclock` gnokey entry, asking only for its
+password. It stages runtime files, deploys in dependency order and skips
+packages already on chain, so it can be rerun. Then:
+
+```sh
+node scripts/verify-deploy.ts
+```
+
+compares every deployed file with the local runtime files and checks that
+the maintainer owns the reference app realms. `KEY`, `CHAIN_ID`, `REMOTE`
+and the gas variables override the defaults.

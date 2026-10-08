@@ -1,0 +1,32 @@
+{
+  "request": {
+    "method": "abci_query",
+    "params": {
+      "path": "vm/qfile",
+      "data": "Z25vLmxhbmQvci9nMWxua3l0ZnFjandsbHdzNjNndmYwbXY5eXQwNGFzd3k0eTlhbWhtL3JlbWl4bGFiL29ueXhtaXNzaW5n",
+      "height": "0",
+      "prove": false
+    }
+  },
+  "response": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "response": {
+        "ResponseBase": {
+          "Error": {
+            "@type": "/vm.InvalidPackageError"
+          },
+          "Data": null,
+          "Events": null,
+          "Log": "--= Error =--\nData: &vm.InvalidPackageError{abciError:vm.abciError{}}\nMsg Traces:\n    0  /gnoroot/tm2/pkg/errors/errors.go:103 - package \"gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/onyxmissing\" is not available\nStack Trace:\n    0  /gnoroot/tm2/pkg/errors/errors.go:93\n    1  /gnoroot/tm2/pkg/errors/errors.go:103\n    2  /gnoroot/gno.land/pkg/sdk/vm/keeper.go:1944\n    3  /gnoroot/gno.land/pkg/sdk/vm/handler.go:313\n    4  /gnoroot/gno.land/pkg/sdk/vm/handler.go:137\n    5  /gnoroot/tm2/pkg/sdk/baseapp.go:574\n    6  /gnoroot/tm2/pkg/sdk/baseapp.go:455\n    7  /gnoroot/tm2/pkg/bft/abci/client/local_client.go:193\n    8  /gnoroot/tm2/pkg/bft/appconn/app_conn.go:144\n    9  /gnoroot/tm2/pkg/bft/rpc/core/abci.go:14\n   10  /usr/local/go/src/reflect/value.go:581\n... 16 more lines elided",
+          "Info": ""
+        },
+        "Key": null,
+        "Value": null,
+        "Proof": null,
+        "Height": "0"
+      }
+    }
+  }
+}

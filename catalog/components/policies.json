@@ -26,10 +26,10 @@
   "stateOwner": "host-realm",
   "license": "Apache-2.0",
   "maintainer": "Remix Lab maintainers (g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm)",
-  "lifecycle": "draft",
+  "lifecycle": "reviewed",
   "review": {
     "status": "internal",
-    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+    "scope": "Reviewed by the Remix Lab maintainers on 2026-10-08: unit tests, adversarial realm tests, local-node scenarios and a pre-deployment code review at toolchain 660decca0. Deployed and verified on onyx-1. No independent review yet."
   },
   "limits": {
     "maxOperations": 64

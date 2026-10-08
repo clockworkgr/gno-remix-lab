@@ -28,15 +28,25 @@ describe("resolve", () => {
       "render=gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1",
     ]);
     expect(r.value.lock.thirdParty).toEqual(["gno.land/p/nt/avl/v0"]);
-    expect(r.value.supported).toBe(false); // draft components
+    expect(r.value.supported).toBe(true); // reviewed recipe and components on a verified network
   });
 
-  it("refuses draft and unpublished components on the public testnet", () => {
+  it("resolves on onyx-1, unsupported until the network is verified", () => {
     const r = resolve(spec((p) => (p.network = "onyx-1")), catalog);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.lock.network).toEqual({ id: "onyx-1", chainId: "onyx-1", verified: false });
+    expect(r.value.supported).toBe(false);
+    expect(r.value.warnings.map((w) => w.message)).toEqual(["onyx-1 has not passed the compatibility suite yet"]);
+  });
+
+  it("refuses draft components on the public testnet", () => {
+    const drafts = rebuild((raw) => {
+      for (const c of raw.components) c.lifecycle = "draft";
+    });
+    const r = resolve(spec((p) => (p.network = "onyx-1")), drafts);
     expect(r.ok).toBe(false);
-    if (r.ok) return;
-    const messages = r.diagnostics.map((d) => d.message);
-    expect(messages).toContain("ballots@1.0.0 is a draft and cannot be used on onyx-1");
+    if (!r.ok) expect(r.diagnostics.map((d) => d.message)).toContain("ballots@1.0.0 is a draft and cannot be used on onyx-1");
   });
 
   it("refuses components not published on the network", () => {
@@ -96,6 +106,7 @@ describe("resolve", () => {
   it("gates draft recipes and warns on deprecated ones", () => {
     const published = rebuild((raw) => {
       for (const c of raw.components) c.lifecycle = "published";
+      raw.recipes.find((x) => x.id === "club-poll").lifecycle = "draft";
       const n = raw.networks.find((x) => x.id === "local-dev");
       n.allowDraftComponents = true;
     });
@@ -114,6 +125,7 @@ describe("resolve", () => {
     if (d.ok) expect(d.value.warnings.map((w) => w.message)).toContain("recipe club-poll@1.0.0 is deprecated");
     const strict = rebuild((raw) => {
       for (const c of raw.components) c.lifecycle = "published";
+      raw.recipes.find((x) => x.id === "club-poll").lifecycle = "draft";
       raw.networks.find((x) => x.id === "local-dev").allowDraftComponents = false;
     });
     const s = resolve(spec(), strict);

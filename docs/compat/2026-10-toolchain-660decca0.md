@@ -158,9 +158,10 @@ ugnot) over 14 transactions (sequence 103 → 117): 35.44 GNOT of storage
 deposits and 10.00 GNOT of fees. Per-transaction gas was not recorded,
 and Onyx's `tx_index: off` means it cannot be looked up afterwards.
 
-The catalog lists the Onyx paths, but the components are still `draft`
-and `onyx-1` does not accept drafts, so the composer will not offer Onyx
-until the components are promoted after review.
+The catalog lists the Onyx paths. The recipes and components were marked
+`reviewed` the same day (internal review by the Remix Lab maintainers),
+so the composer can target Onyx. `onyx-1` stays `verified: false` until
+a deploy and calls through Adena have been tried there.
 
 ## Still open for RML-01
 

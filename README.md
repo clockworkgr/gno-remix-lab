@@ -94,9 +94,12 @@ The wallet only signs. Before broadcasting, the app decodes the signed
 transaction and refuses it unless it carries exactly the reviewed
 messages and files under the agreed fee limit.
 
-While the catalog components are `draft`, the composer can only target
-`local-dev` (a gnodev node at 127.0.0.1:26657, with Adena pointed at it);
-Onyx accepts reviewed components only.
+The recipes and components are `reviewed` (internal review by the Remix
+Lab maintainers, 2026-10-08), so projects can target Onyx. Onyx projects
+are labelled "not a supported public release" until `onyx-1` is marked
+`verified` in `catalog/networks/onyx-1.json`, after a full deploy and
+calls through Adena there. `local-dev` targets a gnodev node at
+127.0.0.1:26657.
 
 ## Generating an app
 

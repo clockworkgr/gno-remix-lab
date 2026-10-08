@@ -57,6 +57,18 @@ test("pages fit a phone screen @mobile", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 });
 
+test("works without secure-context APIs, as on plain HTTP", async ({ page }) => {
+  // Browsers hide these on http:// pages; the Lab must not depend on them.
+  await page.addInitScript(() => {
+    Object.defineProperty(Crypto.prototype, "randomUUID", { value: undefined });
+    Object.defineProperty(Crypto.prototype, "subtle", { get: () => undefined });
+  });
+  await page.goto(`/#/apps/${CLUBPOLL}?net=onyx-1&tab=about`);
+  await page.getByRole("button", { name: "Remix this recipe" }).click();
+  await expect(page).toHaveURL(/#\/compose\/[0-9a-f]+$/);
+  await expect(page.getByText("Valid configuration.")).toBeVisible();
+});
+
 test("catalog filters and a component verifies on Onyx", async ({ page }) => {
   await page.goto("/#/catalog");
   await page.getByLabel("Search").fill("membership.read");
@@ -98,9 +110,10 @@ test("compose a club poll: validation, code, changes and export", async ({ page 
   await page.getByRole("button", { name: "Download project (.zip)" }).click();
   expect((await dl).suggestedFilename()).toBe("clubpoll.zip");
 
-  // Onyx refuses draft components, with the reason.
+  // Reviewed components work on Onyx; the network itself is not verified yet.
   await page.locator("main").getByLabel("Network").selectOption("onyx-1");
-  await expect(page.getByText("is a draft and cannot be used on onyx-1").first()).toBeVisible();
+  await expect(page.getByText("Valid configuration.")).toBeVisible();
+  await expect(page.getByText("onyx-1 has not passed the compatibility suite yet")).toBeVisible();
 });
 
 test("a directory form edits fields and reports bad names", async ({ page }) => {

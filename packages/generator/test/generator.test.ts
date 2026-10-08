@@ -147,7 +147,9 @@ describe("generate", () => {
       "render.gno",
     ]);
     expect(files["DEPLOY.md"]).toContain("gno.land/p/nt/avl/v0");
-    expect(JSON.parse(files["remix.provenance.json"]!).supported).toBe(false);
+    // Reviewed recipe and components on a verified network.
+    expect(JSON.parse(files["remix.provenance.json"]!).supported).toBe(true);
+    expect(files["DEPLOY.md"]).not.toContain("Not a publicly supported deployment");
   });
 });
 

@@ -129,12 +129,42 @@ Storage fees are 100 ugnot per byte here; recheck on the target network.
 Not yet measured at the configured limits (100 members, 20 options, 100
 polls); that is the benchmark gate (RML-18).
 
+## Onyx deployment (`onyx-1`, 2026-10-08)
+
+All eleven packages were deployed with `scripts/deploy.sh` under
+`gno.land/{p,r}/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/`.
+`scripts/verify-deploy.ts` passes: every package's digest equals both
+the local runtime files and the catalog `sourceDigest`, the `[addpkg]`
+creator is the maintainer, and the maintainer is owner of all five
+realms. Storage, from `vm/qstorage` (100 ugnot per byte):
+
+| Package | Storage | Deposit |
+|---|---|---|
+| `p/…/core/v1` | 17,023 B | 1.70 GNOT |
+| `p/…/render/v1` | 21,560 B | 2.16 GNOT |
+| `p/…/membership/v1` | 4,586 B | 0.46 GNOT |
+| `p/…/policies/v1` | 6,875 B | 0.69 GNOT |
+| `p/…/forms/v1` | 9,028 B | 0.90 GNOT |
+| `p/…/ballots/v1` | 5,241 B | 0.52 GNOT |
+| `r/…/clubpoll` | 62,223 B | 6.22 GNOT |
+| `r/…/directory` | 69,805 B | 6.98 GNOT |
+| `r/…/contest` | 80,037 B | 8.00 GNOT |
+| `r/…/sharedmembers` | 32,240 B | 3.22 GNOT |
+| `r/…/sharedpoll` | 45,780 B | 4.58 GNOT |
+| **Total** | **354,398 B** | **35.44 GNOT** |
+
+The maintainer's balance fell by 45.44 GNOT (188,889,186 → 143,447,386
+ugnot) over 14 transactions (sequence 103 → 117): 35.44 GNOT of storage
+deposits and 10.00 GNOT of fees. Per-transaction gas was not recorded,
+and Onyx's `tx_index: off` means it cannot be looked up afterwards.
+
+The catalog lists the Onyx paths, but the components are still `draft`
+and `onyx-1` does not accept drafts, so the composer will not offer Onyx
+until the components are promoted after review.
+
 ## Still open for RML-01
 
-- Deploy and call on the public testnet. The target is now Onyx
-  (`onyx-1`), with packages under the maintainer's address namespace;
-  `scripts/deploy.sh` and `scripts/verify-deploy.ts` are ready.
 - Adena: add-package and call messages from the browser extension.
-- Run `scripts/verify-deploy.ts` after the Onyx deploy (byte-exact
-  readback of every runtime file).
+- Call the deployed realms on Onyx (invite, join, poll, vote) and record
+  gas per call.
 - Measure gas/storage at configured limits and decide gas-wanted defaults.

@@ -12,7 +12,8 @@
   "source": "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers",
   "sourceDigest": "sha256:7f9a2dcecb911d06d244ae62929af3cf5a20a4e657e8600485ad663005a6566a",
   "packages": {
-    "local-dev": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers"
+    "local-dev": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers",
+    "onyx-1": "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedmembers"
   },
   "dependencies": [],
   "componentDependencies": [
@@ -23,7 +24,7 @@
   ],
   "stateOwner": "shared-realm",
   "license": "Apache-2.0",
-  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "maintainer": "Remix Lab maintainers (g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm)",
   "lifecycle": "draft",
   "review": {
     "status": "internal",

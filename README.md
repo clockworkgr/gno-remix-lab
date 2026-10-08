@@ -13,7 +13,7 @@ code, test it, and deploy a realm you control. See
 | Shared membership realm and shared-membership poll (RML-08) | Unit tests and local-node scenario pass |
 | Catalog manifests, project schema, resolver, lockfile (RML-02, 09) | All three recipes |
 | Deterministic generator and export (RML-10) | All three recipes; each reference realm is byte-identical generator output |
-| Toolchain/local-node compatibility (RML-01) | Local node done; Onyx deploy script and readback verifier ready, deploy pending; Adena still open |
+| Toolchain/local-node compatibility (RML-01) | Local node done; deployed to Onyx (`onyx-1`) and verified by readback; Adena still open |
 | Chain adapter: transport, typed-value decoding, reads, transaction outcomes, message builders (RML-14) | Tested against wire fixtures recorded from a local node; not yet run against a public node |
 | Web app, validator service, wallet adapter | Not started |
 

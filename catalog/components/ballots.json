@@ -12,7 +12,8 @@
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1",
   "sourceDigest": "sha256:cd2e5f56fbe0aeb3a0c8863860e936ba5aa36e72f04c68661eb04b2993fd9817",
   "packages": {
-    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1"
+    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1",
+    "onyx-1": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1"
   },
   "dependencies": [
     "gno.land/p/nt/avl/v0"
@@ -22,7 +23,7 @@
   ],
   "stateOwner": "host-realm",
   "license": "Apache-2.0",
-  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "maintainer": "Remix Lab maintainers (g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm)",
   "lifecycle": "draft",
   "review": {
     "status": "internal",

@@ -12,13 +12,14 @@
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1",
   "sourceDigest": "sha256:bd0917521d3cdd08d54059a70e822dd0e92dc31580ab83f10bc84e75ed6878a8",
   "packages": {
-    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1"
+    "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1",
+    "onyx-1": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1"
   },
   "dependencies": [],
   "componentDependencies": [],
   "stateOwner": "none",
   "license": "Apache-2.0",
-  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "maintainer": "Remix Lab maintainers (g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm)",
   "lifecycle": "draft",
   "review": {
     "status": "internal",

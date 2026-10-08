@@ -37,7 +37,19 @@ describe("resolve", () => {
     if (r.ok) return;
     const messages = r.diagnostics.map((d) => d.message);
     expect(messages).toContain("ballots@1.0.0 is a draft and cannot be used on onyx-1");
-    expect(messages).toContain("ballots@1.0.0 is not published on onyx-1");
+  });
+
+  it("refuses components not published on the network", () => {
+    const raw = {
+      components: [...catalog.components.values()].map((c) =>
+        c.id === "ballots" ? { ...c, packages: { "local-dev": c.packages["local-dev"] } } : c,
+      ),
+      recipes: [...catalog.recipes.values()],
+      networks: [...catalog.networks.values()],
+    };
+    const r = resolve(spec((p) => (p.network = "onyx-1")), buildCatalog(raw));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.diagnostics.map((d) => d.message)).toContain("ballots@1.0.0 is not published on onyx-1");
   });
 
   it("reports third-party packages missing from the network", () => {

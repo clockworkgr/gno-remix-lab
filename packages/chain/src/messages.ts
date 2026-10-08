@@ -22,7 +22,8 @@ export interface MsgAddPackage {
 }
 
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/;
-const REALM_PATH = /^gno\.land\/r\/[a-z0-9_]+(\/[a-z0-9_]+)*$/;
+// Path elements as gnovm accepts them (the same rule as the spec's PKG_PATH_RE).
+const REALM_PATH = /^gno\.land\/r(\/[a-z][a-z0-9]*([_-][a-z0-9]+)*){2,}$/;
 const COIN = /^([1-9][0-9]*)([a-z][a-z0-9/]{2,127})$/;
 
 export function msgCall(m: { caller: string; pkgPath: string; func: string; args: string[]; send?: string; maxDeposit?: string }): MsgCall {

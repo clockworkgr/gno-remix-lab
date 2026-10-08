@@ -54,7 +54,8 @@ export interface Observation<T> {
 export type ReadArg = string | number | bigint | boolean | { address: string };
 
 const IDENT = /^[A-Z][A-Za-z0-9_]{0,63}$/;
-const PKG_PATH = /^gno\.land\/[pr]\/[a-z0-9_]+(\/[a-z0-9_]+)*$/;
+// Path elements as gnovm accepts them (the same rule as the spec's PKG_PATH_RE).
+const PKG_PATH = /^gno\.land\/[pr](\/[a-z][a-z0-9]*([_-][a-z0-9]+)*){2,}$/;
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/;
 
 /** Builds `pkg.Fn(arg, …)` with every argument encoded as a Gno literal. */

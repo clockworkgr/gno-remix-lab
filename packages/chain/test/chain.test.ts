@@ -366,6 +366,18 @@ describe("callExpr", () => {
     expect(() => callExpr(POLL, "RoleOf", [{ address: 'g1") + x("' }])).toThrow();
     expect(() => callExpr(POLL, "X", [1.5])).toThrow();
   });
+  it("accepts every path the spec accepts, and nothing gnovm rejects", () => {
+    const CALLER = "g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm";
+    // Hyphens are valid between alphanumerics (gnovm Re_name, spec PKG_PATH_RE).
+    expect(callExpr("gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/my-club", "X", [])).toBe(
+      "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/my-club.X()",
+    );
+    expect(msgCall({ caller: CALLER, pkgPath: "gno.land/r/ns/my-club", func: "Join", args: [] }).pkg_path).toBe("gno.land/r/ns/my-club");
+    for (const bad of ["gno.land/r/ns/-club", "gno.land/r/ns/club-", "gno.land/r/ns/a--b", "gno.land/r/ns/1club", "gno.land/r/club"]) {
+      expect(() => callExpr(bad, "X", []), bad).toThrow();
+      expect(() => msgCall({ caller: CALLER, pkgPath: bad, func: "X", args: [] }), bad).toThrow();
+    }
+  });
 });
 
 describe("HttpTransport", () => {

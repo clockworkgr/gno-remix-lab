@@ -385,6 +385,14 @@ describe("HttpTransport", () => {
   it("refuses non-HTTP endpoints", () => {
     expect(() => new HttpTransport("file:///etc/passwd")).toThrow();
   });
+  it("calls fetch as a plain function, as browsers require", async () => {
+    // window.fetch throws "Illegal invocation" when `this` is another object.
+    const strictFetch = function (this: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+      return Promise.resolve(new Response('{"jsonrpc":"2.0","id":1,"result":{}}'));
+    } as unknown as typeof fetch;
+    expect(await new HttpTransport("http://node", undefined, strictFetch).call("status", {})).toEqual({});
+  });
 });
 
 describe("messages", () => {

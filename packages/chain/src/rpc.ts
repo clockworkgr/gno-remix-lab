@@ -47,7 +47,9 @@ export class HttpTransport implements Transport {
     if (u.protocol !== "https:" && u.protocol !== "http:") throw new TypeError(`unsupported RPC URL ${url}`);
     this.url = u.toString();
     this.limits = limits;
-    this.fetch = fetchImpl;
+    // Called as a plain function: browsers reject window.fetch invoked as a
+    // method of another object ("Illegal invocation").
+    this.fetch = (url, init) => fetchImpl(url, init);
   }
 
   async call(method: string, params: Record<string, unknown>): Promise<unknown> {

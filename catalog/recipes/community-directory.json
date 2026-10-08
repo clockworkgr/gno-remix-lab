@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "community-directory",
+  "version": "1.0.0",
+  "title": "Community directory",
+  "summary": "A public directory: people submit entries through a fixed form, reviewers accept or reject them, and accepted entries are listed publicly.",
+  "components": [
+    {
+      "id": "core",
+      "version": "1.0.0"
+    },
+    {
+      "id": "forms",
+      "version": "1.0.0"
+    },
+    {
+      "id": "membership",
+      "version": "1.0.0"
+    },
+    {
+      "id": "policies",
+      "version": "1.0.0"
+    },
+    {
+      "id": "render",
+      "version": "1.0.0"
+    }
+  ],
+  "operations": [
+    {
+      "op": "members.invite",
+      "description": "Invite an address to join (invitation mode only)",
+      "default": "owner",
+      "floor": "reviewer"
+    },
+    {
+      "op": "members.remove",
+      "description": "Remove a member",
+      "default": "owner",
+      "floor": "owner"
+    },
+    {
+      "op": "members.set_role",
+      "description": "Change a member role, including appointing owners",
+      "default": "owner",
+      "floor": "owner"
+    },
+    {
+      "op": "entry.submit",
+      "description": "Submit an entry for review",
+      "default": "public",
+      "floor": "public"
+    },
+    {
+      "op": "entry.review",
+      "description": "Accept or reject a submitted entry",
+      "default": "reviewer",
+      "floor": "reviewer"
+    },
+    {
+      "op": "policy.set",
+      "description": "Change these rules within their floors",
+      "default": "owner",
+      "floor": "owner"
+    }
+  ],
+  "lifecycle": "draft"
+}

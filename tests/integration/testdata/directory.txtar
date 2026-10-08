@@ -1,0 +1,84 @@
+# Community directory on a real in-memory node: submit a project, reject
+# invalid fields, approve it, list it publicly and paginate.
+
+loadpkg gno.land/p/nt/avl/v0
+
+loadpkg gno.land/p/remixlab/core/v1 $WORK/gno/p/remixlab/core/v1
+loadpkg gno.land/p/remixlab/membership/v1 $WORK/gno/p/remixlab/membership/v1
+loadpkg gno.land/p/remixlab/policies/v1 $WORK/gno/p/remixlab/policies/v1
+loadpkg gno.land/p/remixlab/forms/v1 $WORK/gno/p/remixlab/forms/v1
+loadpkg gno.land/p/remixlab/render/v1 $WORK/gno/p/remixlab/render/v1
+
+adduser alice
+adduser reviewer
+adduser mallory
+
+gnoland start
+
+stageruntime $WORK/gno/r/remixlab/directory $WORK/deploy/directory
+gnokey maketx addpkg -pkgdir $WORK/deploy/directory -pkgpath gno.land/r/remixlab/directory -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Only the runtime files went on chain.
+gnokey query vm/qfile --data 'gno.land/r/remixlab/directory'
+stdout 'data: app.gno\ndescriptor.gno\ngnomod.toml\nrender.gno\n'
+! stdout '_test.gno'
+
+
+# Appoint a reviewer.
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Invite -args $reviewer_user_addr -args reviewer -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test reviewer
+stdout OK!
+
+# Anyone may submit; optional fields are empty strings.
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'Gno Boards' -args 'gno.land/r/demo/boards' -args Realm -args 2023 -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout '\(1 uint64\)'
+
+# Invalid fields are rejected with the field name.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args '' -args 'x' -args Realm -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'name is required'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'x' -args 'y' -args Scam -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'category is not an allowed choice'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'x' -args 'y' -args Tool -args 1999 -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'since out of range'
+
+# Nothing is public until reviewed.
+gnokey query vm/qrender --data 'gno.land/r/remixlab/directory:entries'
+stdout 'Nothing here yet'
+gnokey query vm/qrender --data 'gno.land/r/remixlab/directory:queue'
+stdout 'Gno Boards'
+
+# Outsiders cannot review.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Accept -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'entry.review requires reviewer'
+
+# The reviewer approves it.
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Accept -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test reviewer
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/remixlab/directory:entries/1'
+stdout 'Status: \*\*accepted\*\*'
+stdout 'gno\\.land\\/r\\/demo\\/boards'
+gnokey query vm/qeval_json --data 'gno.land/r/remixlab/directory.Entries(0, 25)'
+stdout '"Gno Boards"'
+
+# A rejected entry stays off the public pages.
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'Spam' -args 'y' -args Other -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stdout '\(2 uint64\)'
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Reject -args 2 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test reviewer
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/remixlab/directory:entries/2'
+stdout 'This entry was rejected'
+! stdout 'Spam'
+
+# Paginate: fill a second page of accepted entries.
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'A' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'B' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'C' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'submission limit reached for this address'
+gnokey query vm/qeval --data 'gno.land/r/remixlab/directory.Queue(0, 25)'
+stdout 'A'
+gnokey query vm/qrender --data 'gno.land/r/remixlab/directory:entries?page=9'
+stdout 'Gno Boards'

@@ -1,0 +1,74 @@
+# Wire fixtures for the TypeScript chain adapter: raw JSON-RPC responses
+# from a real node. With REMIX_FIXTURE_DIR set (see packages/chain), each
+# rpcfixture/abcifixture call also saves its request and response.
+
+loadpkg gno.land/p/nt/avl/v0
+loadpkg gno.land/p/remixlab/core/v1 $WORK/gno/p/remixlab/core/v1
+loadpkg gno.land/p/remixlab/membership/v1 $WORK/gno/p/remixlab/membership/v1
+loadpkg gno.land/p/remixlab/policies/v1 $WORK/gno/p/remixlab/policies/v1
+loadpkg gno.land/p/remixlab/forms/v1 $WORK/gno/p/remixlab/forms/v1
+loadpkg gno.land/p/remixlab/ballots/v1 $WORK/gno/p/remixlab/ballots/v1
+loadpkg gno.land/p/remixlab/render/v1 $WORK/gno/p/remixlab/render/v1
+
+adduser alice
+adduser mallory
+
+gnoland start
+
+stageruntime $WORK/gno/r/remixlab/clubpoll $WORK/deploy/clubpoll
+gnokey maketx addpkg -pkgdir $WORK/deploy/clubpoll -pkgpath gno.land/r/remixlab/clubpoll -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+stageruntime $WORK/gno/r/remixlab/directory $WORK/deploy/directory
+gnokey maketx addpkg -pkgdir $WORK/deploy/directory -pkgpath gno.land/r/remixlab/directory -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Invite -args $alice_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func CreatePoll -args 'Venue' -args 'Library|Cafe' -args 3600 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func OpenPoll -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+capture VOTE_HASH 'TX HASH:\s+(\S+)'
+
+# A call that panics in the realm, broadcast without local simulation so
+# it is committed as a failed transaction.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 0 -simulate skip -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'not in the electorate'
+capture FAIL_HASH 'TX HASH:\s+(\S+)'
+
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Submit -args 'Gno Boards' -args 'gno.land/r/demo/boards' -args Realm -args 2023 -args 'Line one.\nLine two.' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/directory -func Accept -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Node and query fixtures.
+rpcfixture status status '{}'
+stdout '"network": ?"tendermint_test"'
+abcifixture qeval_role vm/qeval 'gno.land/r/remixlab/clubpoll.RoleOf("'$test1_user_addr'")'
+stdout 'KCJvd25lciIgc3RyaW5nKQ'
+abcifixture qeval_json_role vm/qeval_json 'gno.land/r/remixlab/clubpoll.RoleOf("'$test1_user_addr'")'
+abcifixture qeval_json_poll vm/qeval_json 'gno.land/r/remixlab/clubpoll.Poll(1)'
+abcifixture qeval_json_poll_missing vm/qeval_json 'gno.land/r/remixlab/clubpoll.Poll(9)'
+abcifixture qeval_json_members vm/qeval_json 'gno.land/r/remixlab/clubpoll.Members(0, 25)'
+abcifixture qeval_json_rules vm/qeval_json 'gno.land/r/remixlab/clubpoll.Rules()'
+abcifixture qeval_json_descriptor vm/qeval_json 'gno.land/r/remixlab/clubpoll.Descriptor()'
+abcifixture qeval_json_hasvoted vm/qeval_json 'gno.land/r/remixlab/clubpoll.HasVoted(1, "'$alice_user_addr'")'
+abcifixture qeval_json_entry vm/qeval_json 'gno.land/r/remixlab/directory.Entry(1)'
+abcifixture qeval_json_entries_empty vm/qeval_json 'gno.land/r/remixlab/directory.Queue(0, 25)'
+abcifixture qeval_json_fields vm/qeval_json 'gno.land/r/remixlab/directory.Fields()'
+abcifixture qeval_json_unknown_func vm/qeval_json 'gno.land/r/remixlab/clubpoll.Nope()'
+abcifixture qeval_json_unknown_pkg vm/qeval_json 'gno.land/r/remixlab/nothere.Render("")'
+abcifixture qrender_poll vm/qrender 'gno.land/r/remixlab/clubpoll:polls/1'
+abcifixture qfile_list vm/qfile 'gno.land/r/remixlab/clubpoll'
+abcifixture qfile_descriptor vm/qfile 'gno.land/r/remixlab/clubpoll/descriptor.gno'
+
+# Transaction lookups.
+rpcfixture tx_success tx '{"hash":"'$VOTE_HASH'"}'
+rpcfixture tx_failure tx '{"hash":"'$FAIL_HASH'"}'
+rpcfixture tx_unknown tx '{"hash":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}'
+rpcfixture broadcast_garbage broadcast_tx_sync '{"tx":"AQID"}'
+rpcfixture unknown_method no_such_method '{}'

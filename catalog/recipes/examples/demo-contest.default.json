@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "recipe": { "id": "demo-contest", "version": "1.0.0" },
+  "app": { "pkgPath": "gno.land/r/remixlab/contest", "title": "Demo contest" },
+  "network": "local-dev",
+  "config": {
+    "membership": { "joinMode": "invitation", "maxMembers": 100 },
+    "form": {
+      "fields": [
+        { "name": "title", "label": "Demo title", "kind": "text", "required": true, "maxBytes": 80, "multiline": false },
+        { "name": "link", "label": "Where to see it", "kind": "text", "required": true, "maxBytes": 200, "multiline": false },
+        { "name": "team", "label": "Team", "kind": "text", "required": false, "maxBytes": 120, "multiline": false }
+      ],
+      "titleField": "title",
+      "maxSubmissions": 50,
+      "maxPerSubmitter": 1,
+      "maxPayloadBytes": 512
+    },
+    "contest": {
+      "maxEntries": 10,
+      "eligibility": "members",
+      "quorumPercent": 0,
+      "minDurationSeconds": 60,
+      "maxDurationSeconds": 604800
+    },
+    "rules": {
+      "members.invite": "owner",
+      "members.remove": "owner",
+      "members.set_role": "owner",
+      "entry.submit": "public",
+      "entry.review": "reviewer",
+      "contest.open": "owner",
+      "policy.set": "owner"
+    }
+  }
+}

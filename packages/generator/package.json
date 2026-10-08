@@ -1,0 +1,12 @@
+{
+  "name": "@remixlab/generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "bin": { "remix-gen": "./src/cli.ts" },
+  "dependencies": {
+    "@remixlab/resolver": "workspace:*",
+    "@remixlab/spec": "workspace:*"
+  }
+}

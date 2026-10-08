@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "demo-contest",
+  "version": "1.0.0",
+  "title": "Demo contest",
+  "summary": "Entrants submit through a fixed form, reviewers admit up to the ballot limit, and eligible voters choose a winner from the admitted entries.",
+  "components": [
+    {
+      "id": "ballots",
+      "version": "1.0.0"
+    },
+    {
+      "id": "core",
+      "version": "1.0.0"
+    },
+    {
+      "id": "forms",
+      "version": "1.0.0"
+    },
+    {
+      "id": "membership",
+      "version": "1.0.0"
+    },
+    {
+      "id": "policies",
+      "version": "1.0.0"
+    },
+    {
+      "id": "render",
+      "version": "1.0.0"
+    }
+  ],
+  "operations": [
+    {
+      "op": "members.invite",
+      "description": "Invite an address to join (invitation mode only)",
+      "default": "owner",
+      "floor": "reviewer"
+    },
+    {
+      "op": "members.remove",
+      "description": "Remove a member",
+      "default": "owner",
+      "floor": "owner"
+    },
+    {
+      "op": "members.set_role",
+      "description": "Change a member role, including appointing owners",
+      "default": "owner",
+      "floor": "owner"
+    },
+    {
+      "op": "entry.submit",
+      "description": "Submit a contest entry for review",
+      "default": "public",
+      "floor": "public"
+    },
+    {
+      "op": "entry.review",
+      "description": "Admit or reject a submitted entry",
+      "default": "reviewer",
+      "floor": "reviewer"
+    },
+    {
+      "op": "contest.open",
+      "description": "Close entries and open voting on the admitted entries",
+      "default": "owner",
+      "floor": "reviewer"
+    },
+    {
+      "op": "policy.set",
+      "description": "Change these rules within their floors",
+      "default": "owner",
+      "floor": "owner"
+    }
+  ],
+  "lifecycle": "draft"
+}

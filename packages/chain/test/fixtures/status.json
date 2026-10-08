@@ -1,0 +1,69 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "status",
+    "params": {}
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "build_version": "develop",
+      "node_info": {
+        "channels": "QCAhIiMwUA==",
+        "moniker": "fixture-host",
+        "net_address": "g1rxuq7z0774tyu9ctjn93nv66h3mcrvgvacdqnm@127.0.0.1:0",
+        "network": "tendermint_test",
+        "other": {
+          "rpc_address": "tcp://127.0.0.1:0",
+          "tx_index": "off"
+        },
+        "software": "",
+        "version": "v1.0.0-rc.0",
+        "version_set": [
+          {
+            "Name": "abci",
+            "Optional": false,
+            "Version": "v1.0.0-rc.0"
+          },
+          {
+            "Name": "app",
+            "Optional": false,
+            "Version": ""
+          },
+          {
+            "Name": "bft",
+            "Optional": false,
+            "Version": "v1.0.0-rc.0"
+          },
+          {
+            "Name": "blockchain",
+            "Optional": false,
+            "Version": "v1.0.0-rc.0"
+          },
+          {
+            "Name": "p2p",
+            "Optional": false,
+            "Version": "v1.0.0-rc.0"
+          }
+        ]
+      },
+      "sync_info": {
+        "catching_up": false,
+        "latest_app_hash": "qiVggLIZ4oGD7uutYe+/SsMLcVhDBuShWc3oCWiBzg0=",
+        "latest_block_hash": "3V2bkxQFRHoaVw1wxzGyV6tSGoSz3oMa5mBY66PrlPM=",
+        "latest_block_height": "20",
+        "latest_block_time": "2026-10-08T01:57:14.255209Z"
+      },
+      "validator_info": {
+        "address": "g1586u98kez8etvxuyqveszln7zktug0kjv4ah8s",
+        "pub_key": {
+          "@type": "/tm.PubKeyEd25519",
+          "value": "Wu3+rc20yAk190KyoJky+FNB9nSUpBQBdb7PQkpmrYU="
+        },
+        "voting_power": "10"
+      }
+    }
+  }
+}

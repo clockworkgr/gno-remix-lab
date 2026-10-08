@@ -1,0 +1,94 @@
+# Demo contest on a real in-memory node: admit entries, freeze the choices
+# and electorate, vote, finalize and display the winner.
+
+loadpkg gno.land/p/nt/avl/v0
+
+loadpkg gno.land/p/remixlab/core/v1 $WORK/gno/p/remixlab/core/v1
+loadpkg gno.land/p/remixlab/membership/v1 $WORK/gno/p/remixlab/membership/v1
+loadpkg gno.land/p/remixlab/policies/v1 $WORK/gno/p/remixlab/policies/v1
+loadpkg gno.land/p/remixlab/forms/v1 $WORK/gno/p/remixlab/forms/v1
+loadpkg gno.land/p/remixlab/ballots/v1 $WORK/gno/p/remixlab/ballots/v1
+loadpkg gno.land/p/remixlab/render/v1 $WORK/gno/p/remixlab/render/v1
+
+adduser alice
+adduser bob
+adduser entrant1
+adduser entrant2
+adduser entrant3
+adduser mallory
+
+gnoland start
+
+stageruntime $WORK/gno/r/remixlab/contest $WORK/deploy/contest
+gnokey maketx addpkg -pkgdir $WORK/deploy/contest -pkgpath gno.land/r/remixlab/contest -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Two voting members besides the owner.
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Invite -args $alice_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Invite -args $bob_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob
+stdout OK!
+
+# Entrants submit; one entry per address.
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Submit -args 'Realm explorer' -args 'gno.land/r/demo/explorer' -args 'Team A' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test entrant1
+stdout '\(1 uint64\)'
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Submit -args 'Board game' -args 'gno.land/r/demo/game' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test entrant2
+stdout '\(2 uint64\)'
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Submit -args 'Spam' -args 'x' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test entrant3
+stdout '\(3 uint64\)'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Submit -args 'Second try' -args 'x' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test entrant1
+stderr 'submission limit reached for this address'
+
+# Voting needs two admitted entries.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func OpenVoting -args 60 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stderr 'at least two admitted entries are required'
+
+# Admit entries.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Accept -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'entry.review requires reviewer'
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Accept -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Accept -args 2 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Reject -args 3 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Freeze choices and electorate.
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func OpenVoting -args 60 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval_json --data 'gno.land/r/remixlab/contest.Ballot()'
+stdout '"#1 Realm explorer"'
+stdout '"#2 Board game"'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Accept -args 3 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stderr 'submissions are closed'
+
+# Vote.
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Vote -args 2 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Vote -args 2 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Vote -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Vote -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'not in the electorate'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Vote -args 3 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test entrant1
+stderr 'entry is not on the ballot'
+gnokey query vm/qrender --data 'gno.land/r/remixlab/contest:'
+stdout 'Voting is open'
+stdout 'electorate 3 · ballots 3'
+
+# Finalize after the deadline; anyone may call it.
+sleep 62s
+gnokey maketx send -send 1ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+gnokey maketx send -send 1ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/remixlab/contest -func Finalize -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/remixlab/contest.Winner()'
+stdout '\(2 uint64\)'
+stdout '\(true bool\)'
+gnokey query vm/qrender --data 'gno.land/r/remixlab/contest:'
+stdout 'Result: winner\\: \\#2 Board game \\\(entry 2\\\)'

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "core",
+  "catalogVersion": "1.0.0",
+  "kind": "library",
+  "title": "Core contracts",
+  "summary": "Error categories, roles, inert view records and the small read interfaces that blocks and adapters implement.",
+  "provides": [
+    "authority.context/v1"
+  ],
+  "requires": [],
+  "source": "gno/p/remixlab/core/v1",
+  "packages": {
+    "local-dev": "gno.land/p/remixlab/core/v1"
+  },
+  "dependencies": [],
+  "componentDependencies": [],
+  "stateOwner": "none",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {}
+}

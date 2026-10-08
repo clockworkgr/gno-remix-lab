@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "policies",
+  "catalogVersion": "1.0.0",
+  "kind": "library",
+  "title": "Permission policies",
+  "summary": "Named operations mapped to public, member, reviewer or owner eligibility, with per-operation floors that keep admin powers separate.",
+  "provides": [
+    "authorization.policy/v1"
+  ],
+  "requires": [
+    "membership.read/v1"
+  ],
+  "source": "gno/p/remixlab/policies/v1",
+  "packages": {
+    "local-dev": "gno.land/p/remixlab/policies/v1"
+  },
+  "dependencies": [
+    "gno.land/p/nt/avl/v0"
+  ],
+  "componentDependencies": [
+    "core"
+  ],
+  "stateOwner": "host-realm",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {
+    "maxOperations": 64
+  }
+}

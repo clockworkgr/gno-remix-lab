@@ -1,0 +1,62 @@
+# Shared-membership poll on a real node: one realm's electorate comes from a
+# separately deployed shared membership realm, read-only.
+
+loadpkg gno.land/p/nt/avl/v0
+loadpkg gno.land/p/remixlab/core/v1 $WORK/gno/p/remixlab/core/v1
+loadpkg gno.land/p/remixlab/membership/v1 $WORK/gno/p/remixlab/membership/v1
+loadpkg gno.land/p/remixlab/policies/v1 $WORK/gno/p/remixlab/policies/v1
+loadpkg gno.land/p/remixlab/ballots/v1 $WORK/gno/p/remixlab/ballots/v1
+loadpkg gno.land/p/remixlab/render/v1 $WORK/gno/p/remixlab/render/v1
+
+adduser alice
+adduser carol
+adduser mallory
+
+gnoland start
+
+# test1 runs the shared club; carol deploys and administers the poll app.
+stageruntime $WORK/gno/r/remixlab/sharedmembers $WORK/deploy/sharedmembers
+gnokey maketx addpkg -pkgdir $WORK/deploy/sharedmembers -pkgpath gno.land/r/remixlab/sharedmembers -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+stageruntime $WORK/gno/r/remixlab/sharedpoll $WORK/deploy/sharedpoll
+gnokey maketx addpkg -pkgdir $WORK/deploy/sharedpoll -pkgpath gno.land/r/remixlab/sharedpoll -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test carol
+stdout OK!
+
+# alice joins the shared club through the shared realm's own interface.
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedmembers -func Invite -args $alice_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedmembers -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+# The shared club's owner has no admin role in the poll app.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func CreatePoll -args 'Shared question' -args 'yes|no' -args 600 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stderr 'poll.create requires owner'
+
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func CreatePoll -args 'Shared question' -args 'yes|no' -args 600 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test carol
+stdout '\(1 uint64\)'
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func OpenPoll -args 1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test carol
+stdout OK!
+
+# Shared members vote; the poll admin and outsiders are not in the electorate.
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func Vote -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test carol
+stderr 'not in the electorate'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'not in the electorate'
+
+# Membership changes after opening leave the frozen electorate alone.
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedmembers -func Invite -args $mallory_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/remixlab/sharedmembers -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/remixlab/sharedpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'not in the electorate'
+
+gnokey query vm/qeval --data 'gno.land/r/remixlab/sharedmembers.Size()'
+stdout '3 int'
+gnokey query vm/qrender --data 'gno.land/r/remixlab/sharedpoll:polls/1'
+stdout 'electorate 2'
+gnokey query vm/qeval --data 'gno.land/r/remixlab/sharedpoll.Descriptor().Bindings[0]'
+stdout 'membership.read/v1=gno.land/r/remixlab/sharedmembers'

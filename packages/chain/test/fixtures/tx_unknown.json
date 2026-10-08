@@ -1,0 +1,19 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "tx",
+    "params": {
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    }
+  },
+  "response": {
+    "error": {
+      "code": -32603,
+      "data": "Could not find tx result for hash #0000000000000000000000000000000000000000000000000000000000000000",
+      "message": "Internal error"
+    },
+    "id": 1,
+    "jsonrpc": "2.0"
+  }
+}

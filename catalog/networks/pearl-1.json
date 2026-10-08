@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pearl-1",
+  "title": "Pearl testnet (Test16)",
+  "chainId": "pearl-1",
+  "rpc": "https://rpc.pearl.testnets.gno.land:443",
+  "kind": "testnet",
+  "verified": false,
+  "availablePackages": [],
+  "allowDraftComponents": false
+}

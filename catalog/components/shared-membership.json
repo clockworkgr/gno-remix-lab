@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "shared-membership",
+  "catalogVersion": "1.0.0",
+  "kind": "adapter",
+  "title": "Shared membership service",
+  "summary": "A deployed membership realm that other apps consult read-only to build poll electorates.",
+  "provides": [
+    "membership.read/v1"
+  ],
+  "requires": [],
+  "source": "gno/r/remixlab/sharedmembers",
+  "packages": {
+    "local-dev": "gno.land/r/remixlab/sharedmembers"
+  },
+  "dependencies": [],
+  "componentDependencies": [
+    "core",
+    "membership",
+    "policies",
+    "render"
+  ],
+  "stateOwner": "shared-realm",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {}
+}

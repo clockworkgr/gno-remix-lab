@@ -1,0 +1,22 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "broadcast_tx_sync",
+    "params": {
+      "tx": "AQID"
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "data": null,
+      "error": {
+        "@type": "/std.TxDecodeError"
+      },
+      "hash": "A5BYxvLAy0ksUzsKTRTvd8wPeKvMztUofYShogEc+4E=",
+      "log": ""
+    }
+  }
+}

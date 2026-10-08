@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "recipe": { "id": "club-poll", "version": "1.0.0" },
+  "app": { "pkgPath": "gno.land/r/remixlab/clubpoll", "title": "Club poll" },
+  "network": "local-dev",
+  "config": {
+    "membership": { "joinMode": "invitation", "maxMembers": 100 },
+    "ballots": {
+      "eligibility": "members",
+      "quorumPercent": 0,
+      "allowAbstain": false,
+      "maxBallots": 100,
+      "maxOptions": 20,
+      "minDurationSeconds": 60,
+      "maxDurationSeconds": 2592000,
+      "maxTitleBytes": 140,
+      "maxOptionBytes": 80
+    },
+    "rules": {
+      "members.invite": "owner",
+      "members.remove": "owner",
+      "members.set_role": "owner",
+      "poll.create": "owner",
+      "poll.open": "owner",
+      "policy.set": "owner"
+    }
+  }
+}

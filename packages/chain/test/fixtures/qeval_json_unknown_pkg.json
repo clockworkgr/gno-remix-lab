@@ -1,0 +1,34 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9ub3RoZXJlLlJlbmRlcigiIik=",
+      "height": "0",
+      "path": "vm/qeval_json",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": null,
+          "Error": {
+            "@type": "/vm.InvalidPkgPathError"
+          },
+          "Events": null,
+          "Info": "",
+          "Log": "--= Error =--\nData: vm.InvalidPkgPathError{abciError:vm.abciError{}}\nMsg Traces:\n    0  gno/gno.land/pkg/sdk/vm/errors.go:88 - package not found: gno.land/r/remixlab/nothere\nStack Trace:\n    0  gno/tm2/pkg/errors/errors.go:93\n    1  gno/gno.land/pkg/sdk/vm/errors.go:88\n    2  gno/gno.land/pkg/sdk/vm/keeper.go:1882\n    3  gno/gno.land/pkg/sdk/vm/keeper.go:1992\n    4  gno/gno.land/pkg/sdk/vm/handler.go:252\n    5  gno/gno.land/pkg/sdk/vm/handler.go:131\n    6  gno/tm2/pkg/sdk/baseapp.go:574\n    7  gno/tm2/pkg/sdk/baseapp.go:455\n    8  gno/tm2/pkg/bft/abci/client/local_client.go:193\n    9  gno/tm2/pkg/bft/appconn/app_conn.go:144\n   10  gno/tm2/pkg/bft/rpc/core/abci.go:14\n... 17 more lines elided"
+        },
+        "Value": null
+      }
+    }
+  }
+}

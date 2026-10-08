@@ -1,0 +1,26 @@
+{
+  "name": "remix-lab",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "gen": "node packages/generator/src/cli.ts",
+    "regen:fixtures": "node scripts/regen-fixtures.ts",
+    "check:generated": "node scripts/check-generated.ts",
+    "fixtures:wire": "cd tests/integration && REMIX_FIXTURE_DIR=$PWD/../../packages/chain/test/fixtures go test ./... -run TestScenarios/wire -count=1"
+  },
+  "devDependencies": {
+    "@remixlab/chain": "workspace:*",
+    "@remixlab/generator": "workspace:*",
+    "@remixlab/resolver": "workspace:*",
+    "@remixlab/spec": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

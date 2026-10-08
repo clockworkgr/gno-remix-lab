@@ -1,0 +1,34 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "tx",
+    "params": {
+      "hash": "8SB6XbBpf6OWmVw8gnpFJICvd4Tm8DglHQ+nmPwwIdU="
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "hash": "8SB6XbBpf6OWmVw8gnpFJICvd4Tm8DglHQ+nmPwwIdU=",
+      "height": "16",
+      "index": 0,
+      "tx": "CmIKCi92bS5tX2NhbGwSVAooZzFwOGdrMmxkcTgzc3F0ZzB4Y2h6emx5ZzMydHljMjZwa3p4OWg5biIcZ25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbCoEVm90ZTIBMTIBMBITCIC0iRMSDDEwMDAwMDB1Z25vdBqoAQo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQLmm4F/Vb2ZX3KBt145HVGqyOkwvxcqpWFft2Eg6S1z0RJAArv1Nvb8liLfCZ02yaCWOR5iDQ+UaLcje+YKLGPn2zMQl7Z4ydUR7ElbeQGVHhi23nMnIDGVeSRxmskwzDVe9RooZzFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFsdXV4ZQ==",
+      "tx_result": {
+        "GasUsed": "6972399",
+        "GasWanted": "20000000",
+        "ResponseBase": {
+          "Data": null,
+          "Error": {
+            "@type": "/abci.StringError",
+            "value": "remix: unauthorized: not in the electorate"
+          },
+          "Events": null,
+          "Info": "vm.version=develop",
+          "Log": "msg:0,success:false,log:--= Error =--\nData: errors.FmtError{format:\"remix: unauthorized: not in the electorate\", args:[]interface {}(nil)}\nMsg Traces:\n    0  gno/tm2/pkg/errors/errors.go:103 - VM panic: remix: unauthorized: not in the electorate\nStacktrace:\npanic: remix: unauthorized: not in the electorate\nmust at gno.land/r/remixlab/clubpoll/app.gno:54\nVote at gno.land/r/remixlab/clubpoll/app.gno:155\n\n\nStack Trace:\n    0  gno/tm2/pkg/errors/errors.go:88\n    1  gno/tm2/pkg/errors/errors.go:103\n    2  gno/gno.land/pkg/sdk/vm/keeper.go:1453\n    3  gno/gno.land/pkg/sdk/vm/keeper.go:1426\n    4  toolchain/runtime/panic.go:783\n... 27 more lines elided,events:[]"
+        }
+      }
+    }
+  }
+}

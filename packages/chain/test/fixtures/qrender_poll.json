@@ -1,0 +1,32 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbDpwb2xscy8x",
+      "height": "0",
+      "path": "vm/qrender",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": "IyBWZW51ZQoKU3RhdHVzOiAqKm9wZW4qKiDCtyBlbGVjdG9yYXRlIDIgwrcgYmFsbG90cyAxIMK3IGRlYWRsaW5lIDIwMjZcLTEwXC0wOFQwMlw6NTdcOjEzWgoKfCBPcHRpb24gfCBWb3RlcyB8ICB8CnwgLS0tIHwgLS0tIHwgLS0tIHwKfCBMaWJyYXJ5IHwgMCB8IFt2b3RlXSgvci9yZW1peGxhYi9jbHVicG9sbCRoZWxwJmZ1bmM9Vm90ZSZpZD0xJmNob2ljZT0wKSB8CnwgQ2FmZSB8IDEgfCBbdm90ZV0oL3IvcmVtaXhsYWIvY2x1YnBvbGwkaGVscCZmdW5jPVZvdGUmaWQ9MSZjaG9pY2U9MSkgfAoKW0FsbCBwb2xsc10oL3IvcmVtaXhsYWIvY2x1YnBvbGw6cG9sbHMpCg==",
+          "Error": null,
+          "Events": null,
+          "Info": "",
+          "Log": ""
+        },
+        "Value": null
+      }
+    }
+  }
+}

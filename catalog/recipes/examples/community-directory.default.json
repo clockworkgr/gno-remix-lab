@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "recipe": { "id": "community-directory", "version": "1.0.0" },
+  "app": { "pkgPath": "gno.land/r/remixlab/directory", "title": "Community directory" },
+  "network": "local-dev",
+  "config": {
+    "membership": { "joinMode": "invitation", "maxMembers": 50 },
+    "form": {
+      "fields": [
+        { "name": "name", "label": "Project name", "kind": "text", "required": true, "maxBytes": 80, "multiline": false },
+        { "name": "link", "label": "Realm or repository", "kind": "text", "required": true, "maxBytes": 200, "multiline": false },
+        {
+          "name": "category",
+          "label": "Category",
+          "kind": "choice",
+          "required": true,
+          "choices": ["Realm", "Library", "Tool", "Other"]
+        },
+        { "name": "since", "label": "Year started", "kind": "integer", "required": false, "min": 2000, "max": 2100 },
+        { "name": "summary", "label": "Summary", "kind": "text", "required": false, "maxBytes": 500, "multiline": true }
+      ],
+      "titleField": "name",
+      "maxSubmissions": 100,
+      "maxPerSubmitter": 3,
+      "maxPayloadBytes": 1024
+    },
+    "rules": {
+      "members.invite": "owner",
+      "members.remove": "owner",
+      "members.set_role": "owner",
+      "entry.submit": "public",
+      "entry.review": "reviewer",
+      "policy.set": "owner"
+    }
+  }
+}

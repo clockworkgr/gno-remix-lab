@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "render",
+  "catalogVersion": "1.0.0",
+  "kind": "library",
+  "title": "Rendering",
+  "summary": "Escaping for untrusted text, Markdown tables, pagination, route parsing and gnoweb transaction links.",
+  "provides": [
+    "view.markdown/v1"
+  ],
+  "requires": [],
+  "source": "gno/p/remixlab/render/v1",
+  "packages": {
+    "local-dev": "gno.land/p/remixlab/render/v1"
+  },
+  "dependencies": [],
+  "componentDependencies": [
+    "core"
+  ],
+  "stateOwner": "none",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {}
+}

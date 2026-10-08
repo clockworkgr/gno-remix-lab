@@ -1,0 +1,4 @@
+# Pinned Gno toolchain for Remix Lab development and integration tests.
+# scripts/link-toolchain.sh checks the checkout at $GNOROOT against this.
+repo=https://github.com/gnolang/gno
+commit=660decca0

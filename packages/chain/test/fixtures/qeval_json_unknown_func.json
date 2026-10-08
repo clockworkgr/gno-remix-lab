@@ -1,0 +1,35 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbC5Ob3BlKCk=",
+      "height": "0",
+      "path": "vm/qeval_json",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": null,
+          "Error": {
+            "@type": "/abci.StringError",
+            "value": "gno.land/r/remixlab/clubpoll:0:0: name Nope not declared:\n--- preprocess stack ---\nstack 0: package gno.land/r/remixlab/clubpoll:0:0\n------------------------"
+          },
+          "Events": null,
+          "Info": "",
+          "Log": "--= Error =--\nData: \u0026errors.errorString{s:\"gno.land/r/remixlab/clubpoll:0:0: name Nope not declared:\\n--- preprocess stack ---\\nstack 0: package gno.land/r/remixlab/clubpoll:0:0\\n------------------------\"}\nMsg Traces:\n    0  gno/tm2/pkg/errors/errors.go:103 - VM panic: gno.land/r/remixlab/clubpoll:0:0: name Nope not declared:\n--- preprocess stack ---\nstack 0: package gno.land/r/remixlab/clubpoll:0:0\n------------------------\nStacktrace:\n\n\nStack Trace:\n    0  gno/tm2/pkg/errors/errors.go:93\n    1  gno/tm2/pkg/errors/errors.go:103\n    2  gno/gno.land/pkg/sdk/vm/keeper.go:1464\n    3  gno/gno.land/pkg/sdk/vm/keeper.go:1432\n    4  toolchain/runtime/panic.go:783\n... 29 more lines elided"
+        },
+        "Value": null
+      }
+    }
+  }
+}

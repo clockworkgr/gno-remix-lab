@@ -1,0 +1,88 @@
+# Club poll on a real in-memory node: the plan's acceptance scenario.
+# Libraries go into genesis; the app realm is deployed with MsgAddPackage
+# by test1, which becomes its owner through init.
+
+# Published third-party dependency, loaded from the toolchain examples.
+loadpkg gno.land/p/nt/avl/v0
+
+loadpkg gno.land/p/remixlab/core/v1 $WORK/gno/p/remixlab/core/v1
+loadpkg gno.land/p/remixlab/membership/v1 $WORK/gno/p/remixlab/membership/v1
+loadpkg gno.land/p/remixlab/policies/v1 $WORK/gno/p/remixlab/policies/v1
+loadpkg gno.land/p/remixlab/ballots/v1 $WORK/gno/p/remixlab/ballots/v1
+loadpkg gno.land/p/remixlab/render/v1 $WORK/gno/p/remixlab/render/v1
+
+adduser alice
+adduser bob
+adduser mallory
+
+gnoland start
+
+# Deploy the app.
+stageruntime $WORK/gno/r/remixlab/clubpoll $WORK/deploy/clubpoll
+gnokey maketx addpkg -pkgdir $WORK/deploy/clubpoll -pkgpath gno.land/r/remixlab/clubpoll -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# The deployer became the owner.
+gnokey query vm/qeval --data "gno.land/r/remixlab/clubpoll.RoleOf(\"$test1_user_addr\")"
+stdout '"owner" string'
+
+# Add two members.
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Invite -args $alice_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Invite -args $bob_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Join -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob
+stdout OK!
+
+# A non-owner cannot administer.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Invite -args $mallory_user_addr -args member -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'members.invite requires owner'
+
+# Open a poll.
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func CreatePoll -args 'Next meetup venue' -args 'Library|Cafe|Online' -args 60 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout '\(1 uint64\)'
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func OpenPoll -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Cast votes.
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Reject a nonmember and a duplicate vote.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 0 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'not in the electorate'
+! gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Vote -args 1 -args 2 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stderr 'already voted'
+
+# Finalization waits for the deadline.
+! gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Finalize -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stderr 'deadline not reached'
+
+# Structured reads.
+gnokey query vm/qeval --data "gno.land/r/remixlab/clubpoll.HasVoted(1, \"$alice_user_addr\")"
+stdout 'true bool'
+gnokey query vm/qeval_json --data 'gno.land/r/remixlab/clubpoll.Poll(1)'
+stdout 'Next meetup venue'
+
+# Native render.
+gnokey query vm/qrender --data 'gno.land/r/remixlab/clubpoll:polls/1'
+stdout 'Next meetup venue'
+stdout 'Library'
+
+# Wait out the 60s voting period, then anyone may finalize.
+sleep 62s
+# Block time is the median of the previous commit's votes, so after an idle
+# period the first new block or two can still carry the old time. Two filler
+# transactions move chain time past the deadline.
+gnokey maketx send -send 1ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1
+gnokey maketx send -send 1ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/remixlab/clubpoll -func Finalize -args 1 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test mallory
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/remixlab/clubpoll:polls/1'
+stdout 'winner\\: Cafe'

@@ -1,0 +1,32 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbC5NZW1iZXJzKDAsIDI1KQ==",
+      "height": "0",
+      "path": "vm/qeval_json",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": "eyJyZXN1bHRzIjpbeyJUIjp7IkB0eXBlIjoiL2duby5TbGljZVR5cGUiLCJFbHQiOnsiQHR5cGUiOiIvZ25vLlJlZlR5cGUiLCJJRCI6Imduby5sYW5kL3AvcmVtaXhsYWIvY29yZS92MS5NZW1iZXJWaWV3In0sIlZyZCI6ZmFsc2V9LCJWIjp7IkB0eXBlIjoiL2duby5TbGljZVZhbHVlIiwiQmFzZSI6eyJAdHlwZSI6Ii9nbm8uQXJyYXlWYWx1ZSIsIk9iamVjdEluZm8iOnsiSUQiOiIwNjI5MDFmMjAwZDFlNjZmY2QyMGJhMTNhNGU0OTM5ZmFiMDE1NmVhOjAiLCJNb2RUaW1lIjoiMCIsIlJlZkNvdW50IjoiMCIsIkxhc3RPYmplY3RTaXplIjoiMCJ9LCJMaXN0IjpbeyJUIjp7IkB0eXBlIjoiL2duby5SZWZUeXBlIiwiSUQiOiJnbm8ubGFuZC9wL3JlbWl4bGFiL2NvcmUvdjEuTWVtYmVyVmlldyJ9LCJWIjp7IkB0eXBlIjoiL2duby5TdHJ1Y3RWYWx1ZSIsIk9iamVjdEluZm8iOnsiSUQiOiIwNjI5MDFmMjAwZDFlNjZmY2QyMGJhMTNhNGU0OTM5ZmFiMDE1NmVhOjAiLCJNb2RUaW1lIjoiMCIsIlJlZkNvdW50IjoiMCIsIkxhc3RPYmplY3RTaXplIjoiMCJ9LCJGaWVsZHMiOlt7IlQiOnsiQHR5cGUiOiIvZ25vLlJlZlR5cGUiLCJJRCI6Ii51dmVyc2UuYWRkcmVzcyJ9LCJWIjp7IkB0eXBlIjoiL2duby5TdHJpbmdWYWx1ZSIsInZhbHVlIjoiZzFqZzhtdHV0dTlraGhmd2M0bnhtdWhjcGZ0ZjBwYWpkaGZ2c3FmNSJ9fSx7IlQiOnsiQHR5cGUiOiIvZ25vLlJlZlR5cGUiLCJJRCI6Imduby5sYW5kL3AvcmVtaXhsYWIvY29yZS92MS5Sb2xlIn0sIk4iOiJBd0FBQUFBQUFBQT0ifV19fSx7IlQiOnsiQHR5cGUiOiIvZ25vLlJlZlR5cGUiLCJJRCI6Imduby5sYW5kL3AvcmVtaXhsYWIvY29yZS92MS5NZW1iZXJWaWV3In0sIlYiOnsiQHR5cGUiOiIvZ25vLlN0cnVjdFZhbHVlIiwiT2JqZWN0SW5mbyI6eyJJRCI6IjA2MjkwMWYyMDBkMWU2NmZjZDIwYmExM2E0ZTQ5MzlmYWIwMTU2ZWE6MCIsIk1vZFRpbWUiOiIwIiwiUmVmQ291bnQiOiIwIiwiTGFzdE9iamVjdFNpemUiOiIwIn0sIkZpZWxkcyI6W3siVCI6eyJAdHlwZSI6Ii9nbm8uUmVmVHlwZSIsIklEIjoiLnV2ZXJzZS5hZGRyZXNzIn0sIlYiOnsiQHR5cGUiOiIvZ25vLlN0cmluZ1ZhbHVlIiwidmFsdWUiOiJnMWtxdXQyODQ3em5mZXIzMDY1ZHQwMzM4ZG14M21yeXFqYXc5ZjJqIn19LHsiVCI6eyJAdHlwZSI6Ii9nbm8uUmVmVHlwZSIsIklEIjoiZ25vLmxhbmQvcC9yZW1peGxhYi9jb3JlL3YxLlJvbGUifSwiTiI6IkFRQUFBQUFBQUFBPSJ9XX19XSwiRGF0YSI6bnVsbH0sIk9mZnNldCI6IjAiLCJMZW5ndGgiOiIyIiwiTWF4Y2FwIjoiMiJ9fV19",
+          "Error": null,
+          "Events": null,
+          "Info": "",
+          "Log": ""
+        },
+        "Value": null
+      }
+    }
+  }
+}

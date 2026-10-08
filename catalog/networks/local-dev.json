@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "local-dev",
+  "title": "Local development node",
+  "chainId": "dev",
+  "rpc": "http://127.0.0.1:26657",
+  "kind": "local",
+  "verified": true,
+  "availablePackages": [
+    "gno.land/p/nt/avl/v0"
+  ],
+  "allowDraftComponents": true
+}

@@ -1,0 +1,32 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbA==",
+      "height": "0",
+      "path": "vm/qfile",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": "YXBwLmdubwpkZXNjcmlwdG9yLmdubwpnbm9tb2QudG9tbApyZW5kZXIuZ25v",
+          "Error": null,
+          "Events": null,
+          "Info": "",
+          "Log": ""
+        },
+        "Value": null
+      }
+    }
+  }
+}

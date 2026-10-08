@@ -1,0 +1,32 @@
+{
+  "request": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "method": "abci_query",
+    "params": {
+      "data": "Z25vLmxhbmQvci9yZW1peGxhYi9jbHVicG9sbC9kZXNjcmlwdG9yLmdubw==",
+      "height": "0",
+      "path": "vm/qfile",
+      "prove": false
+    }
+  },
+  "response": {
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+      "response": {
+        "Height": "0",
+        "Key": null,
+        "Proof": null,
+        "ResponseBase": {
+          "Data": "cGFja2FnZSBjbHVicG9sbAoKaW1wb3J0ICJnbm8ubGFuZC9wL3JlbWl4bGFiL2NvcmUvdjEiCgovLyBjb25maWdEaWdlc3QgaXMgdGhlIGNhbm9uaWNhbCBkaWdlc3Qgb2YgdGhlIHByb2plY3QgY29uZmlndXJhdGlvbiB0aGF0Ci8vIHByb2R1Y2VkIHRoaXMgcmVhbG0uCmNvbnN0IGNvbmZpZ0RpZ2VzdCA9ICJzaGEyNTY6YmY4MmE3NDdkODQ0YTk0OGIzYzQ1ZDg0YmY3OTQ5YmMzMzE5NmVjZWRmN2M2NjBmOGNlNjdiZWM2MjQ5OTA0NyIKCi8vIERlc2NyaXB0b3IgaWRlbnRpZmllcyB0aGlzIGFwcCdzIHJlY2lwZSBhbmQgY29tcG9uZW50cy4KZnVuYyBEZXNjcmlwdG9yKCkgY29yZS5BcHBEZXNjcmlwdG9yIHsKCXJldHVybiBjb3JlLkFwcERlc2NyaXB0b3J7CgkJUmVjaXBlOiAgICAgICAgcmVjaXBlSUQsCgkJUmVjaXBlVmVyc2lvbjogcmVjaXBlVmVyc2lvbiwKCQlDb21wb25lbnRzOiBbXXN0cmluZ3sKCQkJImJhbGxvdHNAMS4wLjAiLAoJCQkiY29yZUAxLjAuMCIsCgkJCSJtZW1iZXJzaGlwQDEuMC4wIiwKCQkJInBvbGljaWVzQDEuMC4wIiwKCQkJInJlbmRlckAxLjAuMCIsCgkJfSwKCQlDb25maWdEaWdlc3Q6ICAgICAgY29uZmlnRGlnZXN0LAoJCVZpZXdTY2hlbWFWZXJzaW9uOiBjb3JlLlZpZXdTY2hlbWFWZXJzaW9uLAoJCUJpbmRpbmdzOiAgICAgICAgICBbXXN0cmluZ3sibWVtYmVyc2hpcC5yZWFkL3YxPSIgKyBwa2dQYXRofSwKCX0KfQo=",
+          "Error": null,
+          "Events": null,
+          "Info": "",
+          "Log": ""
+        },
+        "Value": null
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "forms",
+  "catalogVersion": "1.0.0",
+  "kind": "library",
+  "title": "Forms",
+  "summary": "Fixed field schemas with text, integer and choice fields, bounded public submissions and an accept/reject review status.",
+  "provides": [
+    "submission.read/v1"
+  ],
+  "requires": [],
+  "source": "gno/p/remixlab/forms/v1",
+  "packages": {
+    "local-dev": "gno.land/p/remixlab/forms/v1"
+  },
+  "dependencies": [
+    "gno.land/p/nt/avl/v0"
+  ],
+  "componentDependencies": [
+    "core"
+  ],
+  "stateOwner": "host-realm",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {
+    "maxFields": 10,
+    "maxSubmissions": 1000,
+    "maxFieldBytes": 2048,
+    "maxPayloadBytes": 8192
+  }
+}

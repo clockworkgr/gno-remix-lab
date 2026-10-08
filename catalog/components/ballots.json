@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "ballots",
+  "catalogVersion": "1.0.0",
+  "kind": "library",
+  "title": "Public ballots",
+  "summary": "Single-choice polls with fixed options, an electorate frozen at opening, one vote per address, integer quorum and explicit ties.",
+  "provides": [
+    "ballot.read/v1"
+  ],
+  "requires": [],
+  "source": "gno/p/remixlab/ballots/v1",
+  "packages": {
+    "local-dev": "gno.land/p/remixlab/ballots/v1"
+  },
+  "dependencies": [
+    "gno.land/p/nt/avl/v0"
+  ],
+  "componentDependencies": [
+    "core"
+  ],
+  "stateOwner": "host-realm",
+  "license": "Apache-2.0",
+  "maintainer": "Remix Lab maintainers (placeholder namespace)",
+  "lifecycle": "draft",
+  "review": {
+    "status": "internal",
+    "scope": "Unit tests and local-node scenarios at toolchain 660decca0. No independent review yet."
+  },
+  "limits": {
+    "maxOptions": 20,
+    "maxElectorate": 1000,
+    "maxBallots": 1000,
+    "maxTextBytes": 512
+  }
+}

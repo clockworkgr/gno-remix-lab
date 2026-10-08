@@ -1,6 +1,7 @@
 package forms
 
 import (
+	"strconv"
 	"testing"
 
 	"gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1"
@@ -142,6 +143,12 @@ func TestSchemaValidation(t *testing.T) {
 		{{Name: "t", Label: "x", Kind: KindChoice, Choices: []string{"one"}}},
 		{{Name: "t", Label: "x", Kind: KindChoice, Choices: []string{"a", "a"}}},
 		{{Name: "t", Label: "x", Kind: KindText, MaxBytes: 5}, {Name: "t", Label: "y", Kind: KindText, MaxBytes: 5}},
+		{{Name: "t", Label: "x", Kind: KindText, MaxBytes: 5, Choices: []string{"<x>", "y"}}},
+		{{Name: "t", Label: "x", Kind: KindText, MaxBytes: 5, Max: 3}},
+		{{Name: "t", Label: "x", Kind: KindInteger, Max: 3, MaxBytes: 5}},
+		{{Name: "t", Label: "x", Kind: KindChoice, Choices: []string{"a", "b"}, Multiline: true}},
+		{{Name: "t", Label: "   ", Kind: KindText, MaxBytes: 5}},
+		{{Name: "t", Label: "x", Kind: KindChoice, Choices: []string{"a", "b\u202e"}}},
 	}
 	f := newForm(defaultCfg())
 	for i, fs := range bad {
@@ -162,4 +169,86 @@ func TestViewsAreCopies(t *testing.T) {
 	if again.Answers[0] != "a" || f.Fields()[3].Choices[0] != "tooling" {
 		t.Fatal("view aliases internal state")
 	}
+}
+
+func TestRejectionFreesCapacity(t *testing.T) {
+	f := newForm(Config{MaxSubmissions: 2, MaxPerSubmitter: 1, MaxPayloadBytes: 100})
+	a, err := f.Submit(alice, []string{"spam", "", "", "apps"})
+	mustOK(t, err)
+	b, err := f.Submit(bob, []string{"spam", "", "", "apps"})
+	mustOK(t, err)
+	carol := testutils.TestAddress("carol")
+	_, err = f.Submit(carol, []string{"real", "", "", "apps"})
+	mustFail(t, err, core.ErrLimitExceeded)
+	_, err = f.Submit(alice, []string{"again", "", "", "apps"})
+	mustFail(t, err, core.ErrLimitExceeded)
+
+	mustOK(t, f.Review(a, core.SubmissionRejected))
+	if f.SubmittedBy(alice) != 0 {
+		t.Fatal("rejection did not free the per-address slot")
+	}
+	c, err := f.Submit(carol, []string{"real", "", "", "apps"})
+	mustOK(t, err)
+	mustOK(t, f.Review(c, core.SubmissionAccepted))
+	// Accepted entries keep their slot.
+	_, err = f.Submit(alice, []string{"again", "", "", "apps"})
+	mustFail(t, err, core.ErrLimitExceeded)
+	mustOK(t, f.Review(b, core.SubmissionRejected))
+	_, err = f.Submit(alice, []string{"again", "", "", "apps"})
+	mustOK(t, err)
+	// Rejected entries stay on record.
+	if f.Count() != 4 || f.CountByStatus(core.SubmissionRejected) != 2 {
+		t.Fatal("rejected entries not retained")
+	}
+	if v, ok := f.Submission(a); !ok || v.Status != core.SubmissionRejected {
+		t.Fatal("rejected entry unreadable")
+	}
+}
+
+func TestStatusPagingUsesIndexes(t *testing.T) {
+	f := newForm(Config{MaxSubmissions: 100, MaxPayloadBytes: 100})
+	var ids []uint64
+	for i := 0; i < 9; i++ {
+		id, err := f.Submit(alice, []string{"e" + strconv.Itoa(i), "", "", "apps"})
+		mustOK(t, err)
+		ids = append(ids, id)
+	}
+	for i, id := range ids {
+		switch i % 3 {
+		case 0:
+			mustOK(t, f.Review(id, core.SubmissionAccepted))
+		case 1:
+			mustOK(t, f.Review(id, core.SubmissionRejected))
+		}
+	}
+	acc := f.Submissions(int(core.SubmissionAccepted), 1, 5)
+	if len(acc) != 2 || acc[0].ID != ids[3] || acc[1].ID != ids[6] {
+		t.Fatal("accepted page")
+	}
+	pending := f.Submissions(int(core.SubmissionSubmitted), 0, 2)
+	if len(pending) != 2 || pending[0].ID != ids[2] || pending[1].ID != ids[5] {
+		t.Fatal("pending page")
+	}
+	if len(f.Submissions(3, 0, 5)) != 0 || len(f.Submissions(-2, 0, 5)) != 0 {
+		t.Fatal("unknown status returned entries")
+	}
+	if len(f.Submissions(-1, 0, 100)) != 9 {
+		t.Fatal("unfiltered listing")
+	}
+}
+
+func TestBlankAndOversizedAnswers(t *testing.T) {
+	f := newForm(defaultCfg())
+	_, err := f.Submit(alice, []string{"   ", "", "", "apps"})
+	mustFail(t, err, core.ErrInvalidInput)
+	id, err := f.Submit(alice, []string{"ok", "  \n ", "", "apps"})
+	mustOK(t, err)
+	v, _ := f.Submission(id)
+	if v.Answers[1] != "" {
+		t.Fatal("blank optional text was stored")
+	}
+	_, err = f.Submit(bob, []string{"ok", "", "1000000000000000000000000000000", "apps"})
+	mustFail(t, err, core.ErrInvalidInput)
+	_, err = f.Submit(bob, []string{"a\u202eb", "", "", "apps"})
+	mustFail(t, err, core.ErrInvalidInput)
 }

@@ -74,10 +74,11 @@ func Size() int {
 }
 
 // Snapshot returns members with at least minRole, or ok=false when more
-// than max qualify. The returned slice is a fresh copy.
+// than max qualify or the service is not initialized. The returned slice is
+// a fresh copy.
 func Snapshot(minRole core.Role, max int) ([]address, bool) {
 	if members == nil {
-		return nil, true
+		return nil, false
 	}
 	return members.Snapshot(minRole, max)
 }
@@ -95,22 +96,37 @@ func Members(offset, limit int) []core.MemberView {
 
 // --- Authorized mutations ---
 
-// Invite lets addr join with role ("member" or "reviewer"); inviting an
-// owner additionally requires the set-role permission.
+// Invite lets addr join with role. Inviting a reviewer or owner also
+// requires the set-role permission.
 func Invite(cur realm, addr address, role string) {
 	actor := authorize(cur, opInvite)
 	r, err := core.ParseRole(role)
 	must(err)
-	if r == core.RoleOwner {
+	if r > core.RoleMember {
 		must(policy.Authorize(opSetRole, actor))
 	}
 	must(members.Invite(addr, r))
 }
 
-// RevokeInvite cancels a pending invitation.
+// RevokeInvite cancels a pending invitation. Revoking an invitation for a
+// reviewer or owner also requires the set-role permission.
 func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
+	actor := authorize(cur, opInvite)
+	if r, ok := members.InviteRole(addr); ok && r > core.RoleMember {
+		must(policy.Authorize(opSetRole, actor))
+	}
 	must(members.RevokeInvite(addr))
+}
+
+// Invites pages through pending invitations ordered by address.
+func Invites(offset, limit int) []core.MemberView {
+	if members == nil {
+		return nil
+	}
+	if limit < 1 || limit > pageSize {
+		limit = pageSize
+	}
+	return members.Invites(offset, limit)
 }
 
 // Join accepts the caller's pending invitation.

@@ -6,6 +6,10 @@
 // or RuleOwner, so reconfiguring a policy can never hand admin powers to
 // ordinary members or the public.
 //
+// Operations with an owner floor (typically policy changes and owner
+// appointment) can never be disabled: setting them to RuleNobody would lock
+// the owners out permanently.
+//
 // Policy changes affect future operations only. Ballot eligibility follows
 // the electorate frozen when the ballot opened, not the current policy.
 package policies
@@ -96,6 +100,9 @@ func (p *Policy) Define(op string, rule, floor Rule) {
 	if rule < floor {
 		panic(core.Errorf(core.ErrInvalidInput, op+": rule below floor").Error())
 	}
+	if floor >= RuleOwner && rule == RuleNobody {
+		panic(core.Errorf(core.ErrInvalidInput, op+": cannot be disabled").Error())
+	}
 	if p.ops.Has(op) {
 		panic(core.Errorf(core.ErrConflict, op+": already defined").Error())
 	}
@@ -117,6 +124,9 @@ func (p *Policy) Set(op string, rule Rule) error {
 	}
 	if rule < e.floor {
 		return core.Errorf(core.ErrInvalidInput, op+": rule below floor "+e.floor.String())
+	}
+	if e.floor >= RuleOwner && rule == RuleNobody {
+		return core.Errorf(core.ErrInvalidInput, op+": cannot be disabled")
 	}
 	e.rule = rule
 	return nil
@@ -140,6 +150,9 @@ func (p *Policy) Authorize(op string, actor address) error {
 	}
 	if allowed(e.rule, p.members.RoleOf(actor)) {
 		return nil
+	}
+	if e.rule == RuleNobody {
+		return core.Errorf(core.ErrUnauthorized, op+" is disabled")
 	}
 	return core.Errorf(core.ErrUnauthorized, op+" requires "+e.rule.String())
 }
@@ -169,7 +182,12 @@ func (p *Policy) get(op string) *entry {
 	return v.(*entry)
 }
 
+// allowed treats a role outside the defined range as no role, so a faulty
+// MembershipReader can never grant more than owner.
 func allowed(rule Rule, role core.Role) bool {
+	if !role.Valid() {
+		return rule == RulePublic
+	}
 	switch rule {
 	case RulePublic:
 		return true
@@ -185,18 +203,31 @@ func allowed(rule Rule, role core.Role) bool {
 
 func (r Rule) valid() bool { return r >= RulePublic && r <= RuleNobody }
 
-// checkOp accepts lowercase dotted identifiers such as "poll.open".
+// checkOp accepts lowercase dotted identifiers such as "poll.open": each
+// dot- or underscore-separated part starts with a letter and continues with
+// letters or digits.
 func checkOp(op string) error {
 	if len(op) == 0 || len(op) > 48 {
 		return core.Errorf(core.ErrInvalidInput, "operation name length")
 	}
-	for i, c := range op {
+	partStart := true
+	for _, c := range op {
 		lower := c >= 'a' && c <= 'z'
 		digit := c >= '0' && c <= '9'
-		sep := c == '.' || c == '_'
-		if !(lower || (i > 0 && (digit || sep))) {
+		switch {
+		case c == '.' || c == '_':
+			if partStart {
+				return core.Errorf(core.ErrInvalidInput, "invalid operation name")
+			}
+			partStart = true
+		case lower || (digit && !partStart):
+			partStart = false
+		default:
 			return core.Errorf(core.ErrInvalidInput, "invalid operation name")
 		}
+	}
+	if partStart {
+		return core.Errorf(core.ErrInvalidInput, "invalid operation name")
 	}
 	return nil
 }

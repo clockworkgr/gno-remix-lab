@@ -1,19 +1,25 @@
 // Compares the deployed Remix Lab packages with the local runtime files and
-// checks that the maintainer owns each reference app realm.
+// checks that the maintainer deployed and owns them.
 //
 //   node scripts/verify-deploy.ts [--remote URL] [--network ID]
 //
-// .gno files must match byte for byte. gnomod.toml is compared by its module
-// line only, because the chain may rewrite the rest of it on deploy.
-import { readdirSync, readFileSync } from "node:fs";
+// Each package must hash (remixlab-bundle-v1) to the digest of the local
+// runtime files, and catalog components also to their manifest's
+// sourceDigest. The digest reads only the module and gno lines of
+// gnomod.toml, because the chain rewrites that file on deploy; the [addpkg]
+// table it adds must name the maintainer as creator.
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { ChainReader, HttpTransport } from "@remixlab/chain";
+import { bundleDigest } from "@remixlab/spec";
+import { loadCatalog, readRuntimeFiles } from "@remixlab/spec/node";
+import { ChainReader, HttpTransport, type Schema } from "@remixlab/chain";
 
 const MAINTAINER = "g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm";
-const OWNED_APPS = ["clubpoll", "directory", "contest"];
+const NS = `${MAINTAINER}/remixlab`;
 
 const { values } = parseArgs({
+  strict: true,
   options: {
     remote: { type: "string", default: "https://rpc.onyx.testnets.gno.land:443" },
     network: { type: "string", default: "onyx-1" },
@@ -22,25 +28,26 @@ const { values } = parseArgs({
 
 const root = join(import.meta.dirname, "..");
 const reader = new ChainReader(new HttpTransport(values.remote!), { network: values.network! });
+const catalogDigests = new Map([...loadCatalog(join(root, "catalog")).components.values()].map((c) => [c.source, c.sourceDigest]));
 
-function localPackages(): string[] {
-  const out: string[] = [];
-  for (const d of readdirSync(join(root, "gno/p", MAINTAINER, "remixlab"))) out.push(`p/${MAINTAINER}/remixlab/${d}/v1`);
-  for (const d of readdirSync(join(root, "gno/r", MAINTAINER, "remixlab"))) out.push(`r/${MAINTAINER}/remixlab/${d}`);
-  return out.sort();
-}
+const packages = [
+  ...readdirSync(join(root, "gno/p", NS)).map((d) => `p/${NS}/${d}/v1`),
+  ...readdirSync(join(root, "gno/r", NS)).map((d) => `r/${NS}/${d}`),
+].sort();
 
-function runtimeFiles(dir: string): Record<string, string> {
-  const files: Record<string, string> = {};
-  for (const n of readdirSync(dir)) {
-    if (n === "gnomod.toml" || (n.endsWith(".gno") && !n.endsWith("_test.gno") && !n.endsWith("_filetest.gno"))) {
-      files[n] = readFileSync(join(dir, n), "utf8");
-    }
-  }
-  return files;
-}
-
-const moduleLine = (toml: string) => /^module\s*=.*$/m.exec(toml)?.[0];
+const ROLE: Schema = {
+  kind: "enum",
+  type: `gno.land/p/${NS}/core/v1.Role`,
+  names: ["none", "member", "reviewer", "owner"],
+};
+// How to ask each realm for the maintainer's role.
+const OWNER_CHECKS: Record<string, [fn: string, schema: Schema]> = {
+  clubpoll: ["RoleOf", { kind: "string" }],
+  directory: ["RoleOf", { kind: "string" }],
+  contest: ["RoleOf", { kind: "string" }],
+  sharedmembers: ["RoleOf", ROLE],
+  sharedpoll: ["AdminRole", { kind: "string" }],
+};
 
 let failures = 0;
 const fail = (msg: string) => {
@@ -48,36 +55,44 @@ const fail = (msg: string) => {
   console.log(`FAIL   ${msg}`);
 };
 
-for (const p of localPackages()) {
+for (const p of packages) {
   const path = `gno.land/${p}`;
-  const local = runtimeFiles(join(root, "gno", p));
-  const chain = await reader.readPackage(path);
-  if (chain === null) {
-    fail(`${path}: not deployed`);
-    continue;
-  }
-  const problems: string[] = [];
-  for (const name of new Set([...Object.keys(local), ...Object.keys(chain)])) {
-    const l = local[name];
-    const c = chain[name];
-    if (l === undefined) problems.push(`${name} is on chain only`);
-    else if (c === undefined) problems.push(`${name} is missing on chain`);
-    else if (name === "gnomod.toml" ? moduleLine(l) !== moduleLine(c) : l !== c) problems.push(`${name} differs`);
-  }
-  if (problems.length > 0) fail(`${path}: ${problems.join("; ")}`);
-  else console.log(`ok     ${path} (${Object.keys(local).length} files)`);
-}
-
-for (const app of OWNED_APPS) {
-  const path = `gno.land/r/${MAINTAINER}/remixlab/${app}`;
   try {
-    const [role] = (await reader.read(path, "RoleOf", [{ address: MAINTAINER }], [{ kind: "string" }])).value;
-    if (role === "owner") console.log(`ok     ${path}: maintainer is owner`);
-    else fail(`${path}: maintainer role is ${JSON.stringify(role)}`);
+    const local = readRuntimeFiles(join(root, "gno", p));
+    const chain = await reader.readPackage(path);
+    if (chain === null) {
+      fail(`${path}: not deployed`);
+      continue;
+    }
+    const problems: string[] = [];
+    const want = bundleDigest(local);
+    const got = bundleDigest(chain);
+    if (got !== want) {
+      const differing = [...new Set([...Object.keys(local), ...Object.keys(chain)])].filter(
+        (n) => n !== "gnomod.toml" && local[n] !== chain[n],
+      );
+      problems.push(`digest ${got} != local ${want}${differing.length ? ` (${differing.join(", ")} differ)` : ""}`);
+    }
+    const manifest = catalogDigests.get(`gno/${p}`);
+    if (manifest !== undefined && manifest !== want) problems.push(`local files do not match the catalog sourceDigest; run pnpm regen:fixtures`);
+    const creator = /^\[addpkg\][\s\S]*?^\s*creator\s*=\s*"([^"]*)"/m.exec(chain["gnomod.toml"] ?? "")?.[1];
+    if (creator !== MAINTAINER) problems.push(`deployed by ${creator ?? "unknown"}`);
+
+    const app = p.split("/").pop()!;
+    const check = OWNER_CHECKS[app];
+    if (p.startsWith("r/") && check) {
+      const [role] = (await reader.read(path, check[0], [{ address: MAINTAINER }], [check[1]])).value;
+      if (role !== "owner") problems.push(`maintainer role is ${JSON.stringify(role)}`);
+    } else if (p.startsWith("r/")) {
+      problems.push("no ownership check defined for this realm");
+    }
+
+    if (problems.length > 0) fail(`${path}: ${problems.join("; ")}`);
+    else console.log(`ok     ${path} ${want}${check ? " (maintainer is owner)" : ""}`);
   } catch (e) {
-    fail(`${path}: RoleOf: ${(e as Error).message}`);
+    fail(`${path}: ${(e as Error).message}`);
   }
 }
 
-console.log(failures === 0 ? `All packages match on ${values.network}.` : `${failures} problem(s) on ${values.network}.`);
+console.log(failures === 0 ? `All ${packages.length} packages verified on ${values.network}.` : `${failures} problem(s) on ${values.network}.`);
 process.exitCode = failures === 0 ? 0 : 1;

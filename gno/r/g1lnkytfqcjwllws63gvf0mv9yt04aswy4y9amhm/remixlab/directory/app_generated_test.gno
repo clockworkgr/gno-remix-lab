@@ -37,7 +37,7 @@ func TestGeneratedScenario(cur realm, t *testing.T) {
 	uassert.Equal(t, int(core.SubmissionAccepted), int(v.Status))
 	uassert.Equal(t, 1, len(Entries(0, 25)))
 	uassert.Equal(t, 0, len(Queue(0, 25)))
-	uassert.True(t, strings.Contains(Render("entries"), "Example"))
+	uassert.True(t, strings.Contains(Render("entries"), " | Example |"))
 	uassert.AbortsWithMessage(t, cur, "remix: invalid state: submission already reviewed", func() {
 		Reject(cross(cur), id)
 	})

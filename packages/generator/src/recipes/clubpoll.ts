@@ -1,6 +1,6 @@
 import { activeOperations, type ClubPollProject } from "@remixlab/spec";
 import { gnoBool, gnoInt, gnoPkgPath, gnoString } from "../gno.ts";
-import { RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
+import { INVITE_FUNCTIONS, INVITE_READS, RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
 
 type Input = RecipeInput<ClubPollProject>;
 
@@ -44,28 +44,7 @@ function app({ spec, recipe, lock }: Input): string {
     (o) => `\tpolicy.Define(${OP_CONST[o.op]!}, ${RULE_CONST[c.rules[o.op]!]}, ${RULE_CONST[o.floor]})`,
   );
 
-  const inviteFns = invitation
-    ? `
-// Invite lets addr join with role ("member" or "reviewer").
-func Invite(cur realm, addr address, role string) {
-	actor := authorize(cur, opInvite)
-	r, err := core.ParseRole(role)
-	must(err)
-	if r == core.RoleOwner {
-		// Owners are appointed by an owner through SetRole, never invited by
-		// a reviewer.
-		must(policy.Authorize(opSetRole, actor))
-	}
-	must(members.Invite(addr, r))
-}
-
-// RevokeInvite cancels a pending invitation.
-func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
-	must(members.RevokeInvite(addr))
-}
-`
-    : "";
+  const inviteFns = invitation ? INVITE_FUNCTIONS : "";
 
   const openBody = members
     ? `// OpenPoll freezes the poll's options and captures the current members as
@@ -184,6 +163,19 @@ func CreatePoll(cur realm, title string, options string, durationSeconds int64) 
 	return id
 }
 
+// CancelPoll deletes a draft poll that was never opened, freeing its slot.
+// The poll's creator may cancel it, and so may anyone allowed to open polls.
+func CancelPoll(cur realm, id uint64) {
+	ready()
+	actor := cur.Previous().Address()
+	if creator, ok := polls.Creator(id); ok && creator == actor {
+		must(policy.Authorize(opCreate, actor))
+	} else {
+		must(policy.Authorize(opOpen, actor))
+	}
+	must(polls.CancelDraft(id))
+}
+
 ${openBody}
 
 // Vote casts the caller's vote for option index choice${c.ballots.allowAbstain ? ", or -1 to abstain" : ""}.
@@ -229,7 +221,7 @@ func Members(offset, limit int) []core.MemberView {
 	ready()
 	return members.List(offset, clampLimit(limit))
 }
-
+${invitation ? INVITE_READS : ""}
 // RoleOf returns addr's role name.
 func RoleOf(addr address) string {
 	ready()
@@ -466,12 +458,12 @@ function generatedTest({ spec, lock }: Input): string {
   if (!canCreate || !canOpen) {
     const op = !canCreate ? "poll.create" : "poll.open";
     if (!canCreate) {
-      lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: ${op} requires nobody", func() {`);
+      lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: ${op} is disabled", func() {`);
       lines.push(`\t\tCreatePoll(cross(cur), "T", "a|b", ${gnoInt(c.ballots.minDurationSeconds)})`);
       lines.push("\t})");
     } else {
       lines.push(`\tid := CreatePoll(cross(cur), "T", "a|b", ${gnoInt(c.ballots.minDurationSeconds)})`);
-      lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: ${op} requires nobody", func() {`);
+      lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: ${op} is disabled", func() {`);
       lines.push("\t\tOpenPoll(cross(cur), id)");
       lines.push("\t})");
     }

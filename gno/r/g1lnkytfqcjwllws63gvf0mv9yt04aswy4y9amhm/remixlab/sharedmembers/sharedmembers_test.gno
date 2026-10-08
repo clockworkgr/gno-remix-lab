@@ -15,6 +15,13 @@ var (
 	mallory = testutils.TestAddress("mallory")
 )
 
+// Runs first: under gno test, init has no user deployer.
+func TestUninitializedSnapshotFails(t *testing.T) {
+	_, ok := Snapshot(core.RoleMember, 10)
+	uassert.False(t, ok)
+	uassert.Equal(t, 0, Size())
+}
+
 func TestReadInterface(cur realm, t *testing.T) {
 	setup(owner)
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -46,4 +53,25 @@ func TestMutationsRequireAuthority(cur realm, t *testing.T) {
 	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.remove requires owner", func() {
 		RemoveMember(cross(cur), owner)
 	})
+}
+
+func TestReviewerCannotAdminister(cur realm, t *testing.T) {
+	setup(owner)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Invite(cross(cur), alice, "reviewer")
+	Invite(cross(cur), mallory, "member")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Join(cross(cur))
+	uassert.Equal(t, 1, len(Invites(0, 25)))
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.set_role requires owner", func() {
+		SetRole(cross(cur), alice, "owner")
+	})
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.remove requires owner", func() {
+		RemoveMember(cross(cur), owner)
+	})
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.invite requires owner", func() {
+		RevokeInvite(cross(cur), mallory)
+	})
+	Leave(cross(cur))
+	uassert.Equal(t, int(core.RoleNone), int(RoleOf(alice)))
 }

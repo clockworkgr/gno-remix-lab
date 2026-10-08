@@ -81,7 +81,9 @@ func cmdStageRuntime(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(os.MkdirAll(dst, 0o755))
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !(name == "gnomod.toml" || strings.HasSuffix(name, ".gno") && !strings.HasSuffix(name, "_test.gno")) {
+		runtime := name == "gnomod.toml" ||
+			strings.HasSuffix(name, ".gno") && !strings.HasSuffix(name, "_test.gno") && !strings.HasSuffix(name, "_filetest.gno")
+		if e.IsDir() || !runtime {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(src, name))

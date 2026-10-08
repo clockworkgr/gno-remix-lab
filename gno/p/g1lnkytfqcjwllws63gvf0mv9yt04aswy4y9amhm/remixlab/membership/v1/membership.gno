@@ -106,8 +106,35 @@ func (s *Set) IsInvited(addr address) bool {
 // PendingInvites returns the number of pending invitations.
 func (s *Set) PendingInvites() int { return s.invites.Size() }
 
-// Snapshot implements core.MembershipReader.
+// InviteRole returns the role a pending invitation for addr grants.
+func (s *Set) InviteRole(addr address) (core.Role, bool) {
+	v := s.invites.Get(addr.String())
+	if v == nil {
+		return core.RoleNone, false
+	}
+	return v.(core.Role), true
+}
+
+// Invites returns up to limit pending invitations starting at offset,
+// ordered by address, with the role each one grants.
+func (s *Set) Invites(offset, limit int) []core.MemberView {
+	var out []core.MemberView
+	if offset < 0 || limit <= 0 {
+		return out
+	}
+	s.invites.IterateByOffset(offset, limit, func(k string, v any) bool {
+		out = append(out, core.MemberView{Address: address(k), Role: v.(core.Role)})
+		return false
+	})
+	return out
+}
+
+// Snapshot implements core.MembershipReader. A negative max or an invalid
+// minRole yields (nil, false).
 func (s *Set) Snapshot(minRole core.Role, max int) ([]address, bool) {
+	if max < 0 || !minRole.Valid() {
+		return nil, false
+	}
 	var out []address
 	ok := true
 	s.members.Iterate("", "", func(k string, v any) bool {
@@ -191,6 +218,9 @@ func (s *Set) Join(actor address) error {
 		}
 	}
 	s.members.Set(actor.String(), role)
+	if role == core.RoleOwner {
+		s.owners++
+	}
 	return nil
 }
 

@@ -36,6 +36,13 @@ func TestCheckText(t *testing.T) {
 		{"sep\u2028x", true, ErrInvalidInput},
 		{"0123456789a", false, ErrLimitExceeded},
 		{"héllo", false, nil},
+		{"   ", false, ErrInvalidInput},
+		{"a\u202eb", false, ErrInvalidInput},
+		{"a\u2066b", false, ErrInvalidInput},
+		{"a\u200bb", false, ErrInvalidInput},
+		{"\ufeffab", false, ErrInvalidInput},
+		{"a\u00adb", false, ErrInvalidInput},
+		{"a\u200db", false, nil},
 	}
 	for _, c := range cases {
 		err := CheckText("f", c.s, 1, 10, c.multiline)
@@ -48,6 +55,18 @@ func TestCheckText(t *testing.T) {
 		if !Is(err, c.want) {
 			t.Errorf("%q: want %s, got %v", c.s, c.want.Error(), err)
 		}
+	}
+}
+
+func TestCheckTextMinimum(t *testing.T) {
+	if err := CheckText("f", "ab", 3, 10, false); !Is(err, ErrInvalidInput) || err.Error() != "remix: invalid input: f is too short" {
+		t.Fatalf("got %v", err)
+	}
+	if err := CheckText("f", "    ", 3, 10, false); err == nil || err.Error() != "remix: invalid input: f is required" {
+		t.Fatalf("blank text accepted: %v", err)
+	}
+	if err := CheckText("f", "", 0, 10, false); err != nil {
+		t.Fatalf("optional empty text rejected: %s", err.Error())
 	}
 }
 

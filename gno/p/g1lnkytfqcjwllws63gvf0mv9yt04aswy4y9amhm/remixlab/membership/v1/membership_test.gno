@@ -114,10 +114,46 @@ func TestSnapshotBounded(t *testing.T) {
 	if _, ok := s.Snapshot(core.RoleMember, 2); ok {
 		t.Fatal("over-limit snapshot must fail rather than truncate")
 	}
+	if _, ok := s.Snapshot(core.RoleMember, -1); ok {
+		t.Fatal("negative max must fail")
+	}
+	if _, ok := s.Snapshot(core.Role(7), 10); ok {
+		t.Fatal("invalid minRole must fail")
+	}
 	// snapshot is a copy: later changes don't affect it
+	before := make([]address, len(all))
+	copy(before, all)
 	mustOK(t, s.Leave(alice))
-	if len(all) != 3 {
-		t.Fatal("snapshot aliased internal state")
+	mustOK(t, s.Join(carol))
+	for i := range all {
+		if all[i] != before[i] {
+			t.Fatal("snapshot aliased internal state")
+		}
+	}
+}
+
+func TestInvitedOwnerIsCounted(t *testing.T) {
+	s := New(Config{JoinMode: JoinInvitation, MaxMembers: 10}, owner)
+	mustOK(t, s.Invite(alice, core.RoleOwner))
+	mustOK(t, s.Invite(bob, core.RoleReviewer))
+	if r, ok := s.InviteRole(alice); !ok || r != core.RoleOwner {
+		t.Fatal("invite role")
+	}
+	if _, ok := s.InviteRole(carol); ok {
+		t.Fatal("phantom invitation")
+	}
+	inv := s.Invites(0, 10)
+	if len(inv) != 2 || len(s.Invites(1, 10)) != 1 || len(s.Invites(-1, 10)) != 0 {
+		t.Fatal("invites listing")
+	}
+	mustOK(t, s.Join(alice))
+	if s.Owners() != 2 {
+		t.Fatalf("owners = %d, want 2", s.Owners())
+	}
+	// Either owner can now step down; the last one cannot.
+	mustOK(t, s.Leave(owner))
+	if err := s.Leave(alice); err == nil {
+		t.Fatal("last owner left")
 	}
 }
 

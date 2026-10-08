@@ -319,16 +319,44 @@ describe("view schemas match the Gno sources", () => {
       const s = schema.fields[i]![1];
       const check = GO_TYPE[type];
       if (check) expect(check(s), `${name}.${n} ${type}`).toBe(true);
-      else expect(s.kind, `${name}.${n} ${type}`).toBe("enum");
+      else {
+        expect(s.kind, `${name}.${n} ${type}`).toBe("enum");
+        if (s.kind !== "enum") return;
+        const goType = type.slice(type.lastIndexOf(".") + 1);
+        expect(s.type.endsWith(`.${goType}`), `${name}.${n} type id`).toBe(true);
+        expect(s.names, `${name}.${n} ${goType} names`).toEqual(enumNames(s.type, goType));
+      }
     });
   });
+
+  // The String() names of a Go enum, in iota order, read from its package.
+  const enumNames = (typeId: string, goType: string): string[] => {
+    const pkgDir = typeId.slice("gno.land/".length, typeId.lastIndexOf("."));
+    const dir = join(root, "gno", pkgDir);
+    const src = readdirSync(dir)
+      .filter((f) => f.endsWith(".gno") && !f.endsWith("_test.gno"))
+      .map((f) => readFileSync(join(dir, f), "utf8"))
+      .join("\n");
+    const block = new RegExp(`const \\(\\s*(\\w+) ${goType} = iota\\n([^)]*)\\)`).exec(src);
+    if (!block) throw new Error(`no iota block for ${goType}`);
+    const consts = [block[1]!, ...block[2]!.split("\n").map((l) => l.replace(/\/\/.*/, "").trim()).filter(Boolean)];
+    return consts.map((c) => {
+      const m = new RegExp(`case ${c}:\\s*return "([^"]+)"`).exec(src);
+      if (!m) throw new Error(`no String() case for ${c}`);
+      return m[1]!;
+    });
+  };
 });
 
 describe("callExpr", () => {
   it("encodes arguments as literals", () => {
     expect(callExpr(POLL, "Poll", [1])).toBe("gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.Poll(1)");
     expect(callExpr(POLL, "X", ['a")+evil("', "line\nbreak", 2n ** 64n - 1n, true])).toBe(
-      'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.X("a\\")+evil(\\"", "line\\nbreak", 18446744073709551615, true)',
+      'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.X("a\\")+evil(\\"", "line\\u000abreak", 18446744073709551615, true)',
+    );
+    // Only printable ASCII reaches the expression parser.
+    expect(callExpr(POLL, "X", ["\ufeffé\u202e🙂\\"])).toBe(
+      'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll.X("\\ufeff\\u00e9\\u202e\\U0001f642\\\\")',
     );
   });
   it("rejects unexported or malformed names and bad addresses", () => {
@@ -385,5 +413,81 @@ describe("messages", () => {
       send: "",
     });
     expect(() => msgCall({ caller: addr, pkgPath: POLL, func: "Vote", args: [], send: "1 ugnot" })).toThrow();
+  });
+});
+
+describe("hardening", () => {
+  const ok = (id: number | string, result: unknown) => JSON.stringify({ jsonrpc: "2.0", id, result });
+
+  it("reports body read failures and foreign responses as transport errors", async () => {
+    const broken = (async () =>
+      new Response(
+        new ReadableStream({
+          pull(c) {
+            c.error(new TypeError("terminated"));
+          },
+        }),
+      )) as unknown as typeof fetch;
+    await expect(new HttpTransport("http://node", undefined, broken).call("status", {})).rejects.toBeInstanceOf(TransportError);
+
+    const latin1 = (async () => new Response(new Uint8Array([0x7b, 0xff, 0x7d]))) as unknown as typeof fetch;
+    await expect(new HttpTransport("http://node", undefined, latin1).call("status", {})).rejects.toBeInstanceOf(TransportError);
+
+    const other = (async () => new Response(ok(999, {}))) as unknown as typeof fetch;
+    await expect(new HttpTransport("http://node", undefined, other).call("status", {})).rejects.toThrow(/id does not match/);
+  });
+
+  it("always returns a trackable hash from a broadcast", async () => {
+    const tx = btoa("signed tx bytes");
+    const expected = TxHash.fromHex(
+      [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("signed tx bytes")))]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(""),
+    );
+    const down: Transport = { call: async () => Promise.reject(new TransportError("timeout")) };
+    const lost = await broadcastSync(down, tx);
+    expect(lost.status).toBe("unknown");
+    expect(lost.hash!.hex).toBe(expected.hex);
+
+    const dup: Transport = { call: async () => Promise.reject(new RpcError(-32603, "Internal error", "Tx already exists in cache")) };
+    expect(await broadcastSync(dup, tx)).toMatchObject({ status: "pending" });
+
+    const lying: Transport = { call: async () => ({ hash: TxHash.fromHex("11".repeat(32)).base64, error: null }) };
+    await expect(broadcastSync(lying, tx)).rejects.toThrow(/different hash/);
+  });
+
+  it("refuses a lookup result for another transaction", async () => {
+    const r = fixture("tx_success").response as { result: Record<string, unknown> };
+    const other: Transport = { call: async () => r.result };
+    await expect(lookupTx(other, TxHash.fromHex("22".repeat(32)))).rejects.toThrow(/different transaction/);
+  });
+
+  it("stops tracking as soon as it is aborted, even mid-sleep", async () => {
+    const pending: Transport = { call: async () => Promise.reject(new RpcError(-32603, "Internal error", "Could not find tx result")) };
+    const ac = new AbortController();
+    const started = Date.now();
+    setTimeout(() => ac.abort(new Error("cancelled")), 20);
+    await expect(
+      trackTx(pending, TxHash.fromHex("00".repeat(32)), { intervalMs: 10_000, maxIntervalMs: 10_000, timeoutMs: 60_000, signal: ac.signal }),
+    ).rejects.toThrow(/cancelled/);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("encodes messages the way the chain signs them", () => {
+    const addr = addrOf("qeval_json_role");
+    expect("args" in msgCall({ caller: addr, pkgPath: POLL, func: "Join", args: [] })).toBe(false);
+    expect(() =>
+      msgAddPackage({ creator: addr, pkgPath: POLL, packageName: "clubpoll", files: { "gnomod.toml": "m", "a.gno": "a", "z_0_filetest.gno": "t" } }),
+    ).toThrow(/not a runtime file/);
+    for (const bad of ["0ugnot", "01ugnot", "1ugnot,1ugnot", "2uatom,1ugnot,", "1ugnot,1uatom"]) {
+      expect(() => msgCall({ caller: addr, pkgPath: POLL, func: "X", args: [], send: bad }), bad).toThrow();
+    }
+    expect(msgCall({ caller: addr, pkgPath: POLL, func: "X", args: [], send: "1uatom,5ugnot" }).send).toBe("1uatom,5ugnot");
+  });
+
+  it("decodes negative int32 values", () => {
+    const n = btoa(String.fromCharCode(0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0));
+    const json = JSON.stringify({ results: [{ T: { "@type": "/gno.PrimitiveType", value: "512" }, N: n }] });
+    expect(decodeResults(json, [{ kind: "int", bits: 32 }])).toEqual([-1]);
   });
 });

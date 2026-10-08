@@ -84,7 +84,10 @@ Recorded 7 October 2026 (RML-01, partial).
     realm's panic message). Wallets may behave either way, so the tracker
     handles both.
 12. **`tx` lookups work with `tx_index: off`** on the in-memory node.
-    Public nodes may differ; check on the target network.
+    Onyx's public RPC (also `tx_index: off`) serves the `tx` method too: an
+    unknown hash returns -32603 "Could not find tx result for hash …",
+    the same as the fixture, so the adapter reports "unknown". A hit has
+    not been observed on Onyx yet.
 13. **Onyx reports a missing package differently.** `onyx-1` (node
     v1.0.0-rc.0, `tx_index: off`) answers `vm/qfile` for an unknown path
     with `/vm.InvalidPackageError` `package "…" is not available`; the
@@ -93,6 +96,11 @@ Recorded 7 October 2026 (RML-01, partial).
     enforces namespaces through `gno.land/r/sys/names` and has CLA
     enforcement configured (`gno.land/r/sys/cla`); gas price is 1 ugnot per
     1000 gas and storage 100 ugnot per byte.
+14. **The chain rewrites `gnomod.toml` on deploy.** It keeps the `module`
+    and `gno` lines and appends an `[addpkg]` table (creator, height,
+    max_deposit). The bundle digest therefore reads only those two lines of
+    gnomod.toml; recomputed from Onyx readback, the digests of two deployed
+    Guildhall packages equal the digests of their local files.
 
 ## Measured costs (in-memory node, default params)
 

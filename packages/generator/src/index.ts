@@ -15,6 +15,8 @@ export interface Generated {
   runtime: Record<string, string>;
   /** Generated tests; part of the export, never of the on-chain payload. */
   tests: Record<string, string>;
+  /** Packages only the generated tests import (not locked, not deployed). */
+  testImports: string[];
   configDigest: string;
   runtimeDigest: string;
   supported: boolean;
@@ -60,6 +62,12 @@ export function generate(input: unknown, catalog: Catalog): GenerateResult {
     (name.endsWith("_test.gno") ? tests : runtime)[name] = files[name]!;
   }
 
+  const locked = new Set([...lock.components.map((c) => c.pkgPath), ...lock.thirdParty]);
+  const testImports = new Set<string>();
+  for (const src of Object.values(tests)) {
+    for (const m of src.matchAll(/^\t"(gno\.land\/[^"]+)"$/gm)) if (!locked.has(m[1]!)) testImports.add(m[1]!);
+  }
+
   return {
     ok: true,
     value: {
@@ -67,6 +75,7 @@ export function generate(input: unknown, catalog: Catalog): GenerateResult {
       lock,
       runtime,
       tests,
+      testImports: [...testImports].sort(),
       configDigest: digest,
       runtimeDigest: bundleDigest(runtime),
       supported,
@@ -88,8 +97,15 @@ export function exportProject(g: Generated): Record<string, string> {
     runtimeDigest: g.runtimeDigest,
     runtimeDigestFormat: "remixlab-bundle-v1",
     supported: g.supported,
-    components: g.lock.components.map((c) => ({ id: c.id, version: c.version, pkgPath: c.pkgPath, lifecycle: c.lifecycle })),
+    components: g.lock.components.map((c) => ({
+      id: c.id,
+      version: c.version,
+      pkgPath: c.pkgPath,
+      sourceDigest: c.sourceDigest,
+      lifecycle: c.lifecycle,
+    })),
     thirdParty: g.lock.thirdParty,
+    testImports: g.testImports,
   };
   return {
     ...g.runtime,
@@ -101,35 +117,56 @@ export function exportProject(g: Generated): Record<string, string> {
   };
 }
 
+/** Escapes text for a Markdown heading or paragraph. */
+function mdText(s: string): string {
+  return s.replace(/[\\`*_{}[\]()#+\-.!|~<>&@:]/g, (c) => "\\" + c);
+}
+
 function deployInstructions(g: Generated): string {
   const pkg = g.spec.app.pkgPath;
   const deps = [...g.lock.components.map((c) => c.pkgPath), ...g.lock.thirdParty].sort();
-  return `# Deploying ${g.spec.app.title}
+  const digests = new Map(g.lock.components.map((c) => [c.pkgPath, c.sourceDigest]));
+  const chainId = g.lock.network.chainId;
+  const namespace = pkg.split("/").slice(0, 3).join("/");
+  return `# Deploying ${mdText(g.spec.app.title)}
 
-Network profile: \`${g.lock.network.id}\` (chain ID \`${g.lock.network.chainId}\`)
+Network profile: \`${g.lock.network.id}\` (chain ID \`${chainId}\`)
 Realm path: \`${pkg}\`
-Runtime digest: \`${g.runtimeDigest}\`
-${g.supported ? "" : "\n**Not a publicly supported deployment:** it uses draft components or an unverified network.\n"}
+Runtime digest: \`${g.runtimeDigest}\` (remixlab-bundle-v1)
+${g.supported ? "" : "\n**Not a publicly supported deployment:** it uses a draft recipe, draft components or an unverified network.\n"}
+Deploy from a key that may publish under \`${namespace}/\`: your own
+address namespace (\`gno.land/r/<your g1 address>/...\`) or a registered
+username. Change \`app.pkgPath\` in remix.project.json and regenerate if
+the path above is not yours.
+
 ## 1. Check dependencies
 
-Every package below must already exist on the target chain:
+Every package below must already exist on the target chain. Remix Lab
+packages must also match the source digest listed (remixlab-bundle-v1 of
+their gnomod.toml module line and non-test .gno files):
 
-${deps.map((d) => `- \`${d}\``).join("\n")}
+${deps.map((d) => `- \`${d}\`${digests.has(d) ? ` ${"`"}${digests.get(d)}${"`"}` : ""}`).join("\n")}
 
 \`\`\`sh
-gnokey query vm/qfile --data '${deps[0]}' --remote <rpc>
+for p in ${deps.join(" ")}; do
+  gnokey query vm/qfile --data "$p" --remote <rpc> >/dev/null && echo "ok      $p" || echo "MISSING $p"
+done
 \`\`\`
 
 ## 2. Test locally
 
+The tests import the packages above${g.testImports.length ? ` and ${g.testImports.map((t) => `\`${t}\``).join(", ")}` : ""}.
+Fetch them from the target network first:
+
 \`\`\`sh
+gno mod download -remote-overrides gno.land=<rpc>
 gno test .
 \`\`\`
 
 ## 3. Deploy
 
-Deploy from your own key; the deployer becomes the app's first owner.
-Adjust gas to the network's current parameters.
+The deployer becomes the app's first owner. Adjust gas to the network's
+current parameters.
 
 \`gnokey maketx addpkg -pkgdir\` uploads every .gno file in the directory,
 tests included, so copy the runtime files into a separate directory first:
@@ -140,7 +177,7 @@ gnokey maketx addpkg \\
   -pkgdir ../deploy \\
   -pkgpath ${pkg} \\
   -gas-fee 1000000ugnot -gas-wanted 60000000 \\
-  -chainid ${g.lock.network.chainId} -remote <rpc> -broadcast \\
+  -chainid '${chainId}' -remote <rpc> -broadcast \\
   <your-key>
 \`\`\`
 

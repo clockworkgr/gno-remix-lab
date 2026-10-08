@@ -4,7 +4,9 @@
 //
 // Every string that came from a user must pass through Text or Paragraph
 // before it reaches Markdown. Escaped output cannot open links, images,
-// HTML, headings, tables, code spans or bare URLs.
+// HTML, headings, tables, code spans, bare URLs or @mentions. (gnoweb still
+// links a bare g1 address; that target is a first-party user page.)
+// Invisible and direction-changing format characters are dropped.
 package render
 
 import (
@@ -14,12 +16,15 @@ import (
 )
 
 // Text escapes s for inline Markdown. Newlines and control characters become
-// spaces; every ASCII punctuation character Markdown or gnoweb could
-// interpret is backslash-escaped, and "<", ">" and "&" become entities.
+// spaces, invisible and direction-changing format characters are dropped,
+// every ASCII punctuation character Markdown or gnoweb could interpret is
+// backslash-escaped, and "<", ">" and "&" become entities.
 func Text(s string) string {
 	var sb strings.Builder
 	for _, r := range s {
 		switch {
+		case isHiddenFormat(r):
+			// dropped
 		case r == '<':
 			sb.WriteString("&lt;")
 		case r == '>':
@@ -39,19 +44,27 @@ func Text(s string) string {
 }
 
 // Paragraph escapes multi-line text, keeping line breaks as hard breaks.
+// Leading indentation is removed so no line becomes a code block.
 func Paragraph(s string) string {
 	lines := strings.Split(s, "\n")
 	for i, l := range lines {
-		lines[i] = Text(l)
+		lines[i] = Text(strings.TrimLeft(l, " \t"))
 	}
 	return strings.Join(lines, "  \n")
 }
 
-// Code renders s as an inline code span that cannot be closed early.
+// Code renders s as an inline code span that cannot be closed early. Control
+// characters become spaces, format characters are dropped, and "|" becomes
+// "¦" so the span is also safe inside a table cell.
 func Code(s string) string {
 	s = strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+		switch {
+		case r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) || r == 0x2028 || r == 0x2029:
 			return ' '
+		case isHiddenFormat(r):
+			return -1
+		case r == '|':
+			return '¦'
 		}
 		return r
 	}, s)
@@ -63,7 +76,23 @@ func Code(s string) string {
 }
 
 func isMarkdownPunct(c byte) bool {
-	return strings.IndexByte("\\`*_{}[]()#+-.!|~:\"'=$%^/", c) >= 0
+	return strings.IndexByte("\\`*_{}[]()#+-.!|~:\"'=$%^/@", c) >= 0
+}
+
+// isHiddenFormat matches core.IsHiddenFormat: invisible or
+// direction-changing format characters (ZWNJ and ZWJ are kept).
+func isHiddenFormat(r rune) bool {
+	switch {
+	case r == 0x00ad, r == 0x061c, r == 0x180e, r == 0x200b, r == 0x200e, r == 0x200f, r == 0xfeff:
+		return true
+	case r >= 0x202a && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x206f:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	}
+	return false
 }
 
 // Heading returns a Markdown heading with escaped text. level is clamped to
@@ -78,8 +107,12 @@ func Heading(level int, text string) string {
 	return strings.Repeat("#", level) + " " + Text(text) + "\n\n"
 }
 
-// Table renders a Markdown table. Every header and cell is escaped. Rows
-// shorter than the header are padded; longer rows are truncated.
+// Table renders a Markdown table. Headers are escaped with Text. Row cells
+// are NOT escaped: build rows with Row (untrusted text) or TrustedRow
+// (markup from Link, TxLink, Code). As a last line of defence every cell has
+// line breaks replaced and unescaped "|" escaped, so a cell can never split
+// the row or end the table. Rows shorter than the header are padded; longer
+// rows are truncated.
 func Table(headers []string, rows [][]string) string {
 	if len(headers) == 0 {
 		return ""
@@ -99,13 +132,35 @@ func Table(headers []string, rows [][]string) string {
 		for i := range headers {
 			cell := ""
 			if i < len(row) {
-				cell = row[i]
+				cell = tableCell(row[i])
 			}
 			sb.WriteString(" " + cell + " |")
 		}
 		sb.WriteString("\n")
 	}
 	return sb.String() + "\n"
+}
+
+// tableCell keeps a cell on one line and inside its column.
+func tableCell(c string) string {
+	var sb strings.Builder
+	backslashes := 0
+	for _, r := range c {
+		switch {
+		case r == '\n' || r == '\r' || r == 0x85 || r == 0x2028 || r == 0x2029:
+			sb.WriteByte(' ')
+		case r == '|' && backslashes%2 == 0:
+			sb.WriteString("\\|")
+		default:
+			sb.WriteRune(r)
+		}
+		if r == '\\' {
+			backslashes++
+		} else {
+			backslashes = 0
+		}
+	}
+	return sb.String()
 }
 
 // TrustedRow marks a row whose cells were already built from escaped text
@@ -144,6 +199,34 @@ func RealmURL(pkgPath, renderPath string) string {
 		return base
 	}
 	return base + ":" + escapePath(renderPath)
+}
+
+// RealmQueryURL is RealmURL with query parameters: keys must be Go
+// identifiers and values are URL-encoded, so any value (including "&", "="
+// or "%") reaches Render intact through ParsePath. route itself must not
+// contain "?". It returns "" on invalid input.
+func RealmQueryURL(pkgPath, route string, kv ...string) string {
+	if strings.IndexByte(route, '?') >= 0 || len(kv)%2 != 0 {
+		return ""
+	}
+	u := RealmURL(pkgPath, route)
+	if u == "" {
+		return ""
+	}
+	if route == "" {
+		u += ":"
+	}
+	for i := 0; i < len(kv); i += 2 {
+		if !isIdent(kv[i]) {
+			return ""
+		}
+		sep := "&"
+		if i == 0 {
+			sep = "?"
+		}
+		u += sep + kv[i] + "=" + url.QueryEscape(kv[i+1])
+	}
+	return u
 }
 
 // TxLink renders a gnoweb transaction link for fn on the realm at pkgPath
@@ -195,13 +278,17 @@ func ParsePath(path string) ([]string, url.Values) {
 	return segs, q
 }
 
-// Page reads a 1-based "page" query value, clamped to 1..maxPage.
+// Page reads a 1-based "page" query value, clamped to 1..maxPage (a maxPage
+// below 1 counts as 1).
 func Page(q url.Values, maxPage int) int {
+	if maxPage < 1 {
+		maxPage = 1
+	}
 	p, err := strconv.Atoi(q.Get("page"))
 	if err != nil || p < 1 {
 		return 1
 	}
-	if maxPage >= 1 && p > maxPage {
+	if p > maxPage {
 		return maxPage
 	}
 	return p
@@ -216,35 +303,48 @@ func PageCount(total, pageSize int) int {
 }
 
 // Pager renders previous/next links for a paginated route under pkgPath.
+// page is clamped to 1..pages.
 func Pager(pkgPath, route string, page, pages int) string {
 	if pages <= 1 {
 		return ""
 	}
+	if page < 1 {
+		page = 1
+	}
+	if page > pages {
+		page = pages
+	}
 	var parts []string
 	if page > 1 {
-		parts = append(parts, Link("← previous", RealmURL(pkgPath, route+"?page="+strconv.Itoa(page-1))))
+		parts = append(parts, Link("← previous", RealmQueryURL(pkgPath, route, "page", strconv.Itoa(page-1))))
 	}
 	parts = append(parts, "page "+strconv.Itoa(page)+" of "+strconv.Itoa(pages))
 	if page < pages {
-		parts = append(parts, Link("next →", RealmURL(pkgPath, route+"?page="+strconv.Itoa(page+1))))
+		parts = append(parts, Link("next →", RealmQueryURL(pkgPath, route, "page", strconv.Itoa(page+1))))
 	}
 	return strings.Join(parts, " · ") + "\n\n"
 }
 
+// relativeRealm maps "gno.land/r/..." to "/r/...". Every path segment must
+// be non-empty and use only lowercase letters, digits, "_" and "-".
 func relativeRealm(pkgPath string) (string, bool) {
 	const prefix = "gno.land/r/"
-	if !strings.HasPrefix(pkgPath, prefix) || len(pkgPath) == len(prefix) {
+	if !strings.HasPrefix(pkgPath, prefix) || len(pkgPath) > 256 {
 		return "", false
 	}
-	rest := pkgPath[len("gno.land"):]
-	for _, c := range rest {
-		lower := c >= 'a' && c <= 'z'
-		digit := c >= '0' && c <= '9'
-		if !(lower || digit || c == '/' || c == '_') {
+	for _, seg := range strings.Split(pkgPath[len(prefix):], "/") {
+		if seg == "" {
 			return "", false
 		}
+		for _, c := range seg {
+			lower := c >= 'a' && c <= 'z'
+			digit := c >= '0' && c <= '9'
+			if !(lower || digit || c == '_' || c == '-') {
+				return "", false
+			}
+		}
 	}
-	return rest, true
+	return pkgPath[len("gno.land"):], true
 }
 
 func isRelativeRealmTarget(t string) bool {

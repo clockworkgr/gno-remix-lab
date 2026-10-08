@@ -3,30 +3,49 @@
 //
 // Writes the runtime files (and generated tests) for a project. With
 // --export, also writes the lockfile, provenance and deployment notes.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { loadCatalog } from "@remixlab/spec/node";
 import { exportProject, generate } from "./index.ts";
 
-const args = process.argv.slice(2);
-const flag = (name: string) => {
-  const i = args.indexOf(name);
-  if (i < 0) return undefined;
-  const [, value] = args.splice(i, 2);
-  return value;
-};
-const doExport = args.includes("--export");
-if (doExport) args.splice(args.indexOf("--export"), 1);
-const catalogDir = flag("--catalog") ?? join(dirname(fileURLToPath(import.meta.url)), "../../../catalog");
-
-if (args.length !== 2) {
-  console.error("usage: remix-gen <project.json> <out-dir> [--export] [--catalog <dir>]");
+const usage = "usage: remix-gen <project.json> <out-dir> [--export] [--catalog <dir>]";
+let parsed;
+try {
+  parsed = parseArgs({
+    strict: true,
+    allowPositionals: true,
+    options: { export: { type: "boolean" }, catalog: { type: "string" } },
+  });
+} catch (e) {
+  console.error(`${(e as Error).message}\n${usage}`);
   process.exit(2);
 }
-const [projectFile, outDir] = args as [string, string];
+if (parsed.positionals.length !== 2) {
+  console.error(usage);
+  process.exit(2);
+}
+const [projectFile, outDir] = parsed.positionals as [string, string];
+const doExport = parsed.values.export === true;
+const catalogDir = parsed.values.catalog ?? join(dirname(fileURLToPath(import.meta.url)), "../../../catalog");
 
-const result = generate(JSON.parse(readFileSync(projectFile, "utf8")), loadCatalog(resolvePath(catalogDir)));
+// A stale file left in the output would be compiled by `gno test .`, so the
+// output directory must be new or empty.
+if (existsSync(outDir) && readdirSync(outDir).length > 0) {
+  console.error(`${outDir} is not empty; choose a new directory`);
+  process.exit(2);
+}
+
+let input: unknown;
+try {
+  input = JSON.parse(readFileSync(projectFile, "utf8"));
+} catch (e) {
+  console.error(`${projectFile}: ${(e as Error).message}`);
+  process.exit(1);
+}
+
+const result = generate(input, loadCatalog(resolvePath(catalogDir)));
 if (!result.ok) {
   for (const d of result.diagnostics) console.error(`${d.path || "(project)"}: ${d.message}`);
   process.exit(1);

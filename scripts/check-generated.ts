@@ -30,6 +30,8 @@ const CLUB_POLL: Array<[string, Mut]> = [
   ["create_disabled", (p) => (p.config.rules["poll.create"] = "nobody")],
   ["open_disabled", (p) => (p.config.rules["poll.open"] = "nobody")],
   ["hostile_title", (p) => (p.app.title = HOSTILE)],
+  // The package name comes from the element before a version suffix.
+  ["versioned_path", (p) => (p.app.pkgPath += "/v2")],
 ];
 
 const DIRECTORY: Array<[string, Mut]> = [
@@ -53,6 +55,12 @@ const DIRECTORY: Array<[string, Mut]> = [
     p.config.form.fields[0].label = HOSTILE;
     p.config.form.fields[2].choices = [HOSTILE, "*/ x", "`y`"];
     p.config.form.fields[3].min = -9007199254740991;
+  }],
+  // Multi-byte text right at the byte limits the Gno blocks enforce.
+  ["unicode_limits", (p) => {
+    p.app.title = "名".repeat(20);
+    p.config.form.fields[0].label = "项".repeat(26) + "ab";
+    p.config.form.fields[2].choices = ["选".repeat(26) + "xy", "Ünïcødé", "🙂👨\u200d👩"];
   }],
 ];
 
@@ -120,7 +128,8 @@ try {
       failed++;
       continue;
     }
-    const dir = join(work, "r/remixcheck", name);
+    const rel = project.app.pkgPath.slice("gno.land/".length);
+    const dir = join(work, rel);
     mkdirSync(dir, { recursive: true });
     const files = { ...r.value.runtime, ...r.value.tests };
     for (const [f, c] of Object.entries(files)) writeFileSync(join(dir, f), c);
@@ -134,8 +143,8 @@ try {
           throw new Error(`${f} is not in gno fmt form at line ${line + 1}: ${JSON.stringify(want[line])}`);
         }
       }
-      execFileSync("gno", ["lint", `./r/remixcheck/${name}`], { cwd: work, stdio: "pipe" });
-      execFileSync("gno", ["test", `./r/remixcheck/${name}`], { cwd: work, stdio: "pipe" });
+      execFileSync("gno", ["lint", `./${rel}`], { cwd: work, stdio: "pipe" });
+      execFileSync("gno", ["test", `./${rel}`], { cwd: work, stdio: "pipe" });
       console.log(`ok   ${name}  ${r.value.runtimeDigest.slice(0, 23)}`);
     } catch (e: any) {
       failed++;

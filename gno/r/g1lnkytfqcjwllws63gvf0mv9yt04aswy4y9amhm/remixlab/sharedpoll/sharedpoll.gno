@@ -20,7 +20,7 @@ import (
 
 const (
 	pkgPath       = "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/sharedpoll"
-	recipeID      = "club-poll"
+	recipeID      = "shared-poll-demo"
 	recipeVersion = "1.0.0"
 	pageSize      = 25
 	optionSep     = "|"
@@ -77,6 +77,7 @@ func Descriptor() core.AppDescriptor {
 		RecipeVersion: recipeVersion,
 		Components: []string{
 			"ballots@1.0.0",
+			"core@1.0.0",
 			"membership@1.0.0",
 			"policies@1.0.0",
 			"render@1.0.0",
@@ -111,6 +112,19 @@ func CreatePoll(cur realm, title string, options string, durationSeconds int64) 
 	id, err := polls.Create(actor, title, strings.Split(options, optionSep), durationSeconds)
 	must(err)
 	return id
+}
+
+// CancelPoll deletes a draft poll that was never opened. The poll's creator
+// may cancel it, and so may anyone allowed to open polls.
+func CancelPoll(cur realm, id uint64) {
+	ready()
+	actor := cur.Previous().Address()
+	if creator, ok := polls.Creator(id); ok && creator == actor {
+		must(policy.Authorize(opCreate, actor))
+	} else {
+		must(policy.Authorize(opOpen, actor))
+	}
+	must(polls.CancelDraft(id))
 }
 
 // OpenPoll snapshots the shared realm's current members as the electorate.
@@ -157,6 +171,13 @@ func Polls(offset, limit int) []core.BallotView {
 		limit = pageSize
 	}
 	return polls.List(offset, limit)
+}
+
+// AdminRole returns addr's local administrative role name ("none" when
+// addr is not an administrator).
+func AdminRole(addr address) string {
+	ready()
+	return admins.RoleOf(addr).String()
 }
 
 // HasVoted reports whether addr voted in poll id.

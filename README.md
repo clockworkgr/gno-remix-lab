@@ -31,7 +31,8 @@ packages/spec        project/catalog schemas, canonical JSON, digests
 packages/resolver    recipe + network -> exact package paths (lockfile)
 packages/generator   deterministic Gno source, tests and export (remix-gen CLI)
 packages/chain       JSON-RPC, typed-value decoding, reads, tx outcomes, VM messages
-scripts/             fixture regeneration, generated-variant checks, toolchain link
+scripts/             fixture and digest regeneration, generated-variant checks,
+                     toolchain link, Onyx deploy and deploy verification
 apps/, services/     web app and validator (planned)
 docs/                compatibility reports, ADRs
 ```
@@ -46,7 +47,7 @@ Requires Node 24+, pnpm 10, Go 1.25+ and the `gno` CLI at the pinned commit.
 ```sh
 pnpm install
 pnpm typecheck && pnpm test        # schemas, resolver, generator, chain adapter
-pnpm check:generated               # generate 32 config variants; gno fmt/lint/test each
+pnpm check:generated               # generate 30 config variants; gno fmt/lint/test each
 
 # Gno unit tests and lint
 cd gno && gno test ./... && gno lint ./...
@@ -86,6 +87,11 @@ packages already on chain, so it can be rerun. Then:
 node scripts/verify-deploy.ts
 ```
 
-compares every deployed file with the local runtime files and checks that
-the maintainer owns the reference app realms. `KEY`, `CHAIN_ID`, `REMOTE`
-and the gas variables override the defaults.
+checks every package: its on-chain digest equals the digest of the local
+runtime files (and, for catalog components, the manifest's `sourceDigest`),
+the chain recorded the maintainer as creator, and the maintainer owns each
+realm. `KEY`, `CHAIN_ID`, `REMOTE` and the gas variables override the
+deploy defaults.
+
+Deployed `/p/` packages cannot be changed. Any fix after deployment needs a
+new version path (`.../v2`), so run the full check suite before deploying.

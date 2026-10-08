@@ -164,7 +164,7 @@ func renderRules() string {
 	rows = append(rows, render.Row("contest.vote", "electorate frozen when voting opens (members)", "-"))
 	return render.Heading(1, "Rules") +
 		render.Table([]string{"Operation", "Who may", "Most permissive allowed"}, rows) +
-		"Up to 50 submissions, at most 1 per address; at most 10 admitted entries. Review decisions are final; a tie has no winner." + "\n"
+		"Up to 50 pending or admitted submissions, at most 1 per address; at most 10 admitted entries. Review decisions are final; rejecting an entry frees its slot. A tie has no winner." + "\n"
 }
 
 func resultLabel(v core.BallotView) string {

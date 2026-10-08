@@ -77,8 +77,22 @@ func TestFloorsProtectAdmin(t *testing.T) {
 	if err := p.Set("poll.vote", RuleNobody); err != nil {
 		t.Fatal(err.Error())
 	}
-	if p.Authorize("poll.vote", owner) == nil {
-		t.Fatal("disabled op allowed")
+	if err := p.Authorize("poll.vote", owner); err == nil || err.Error() != "remix: unauthorized: poll.vote is disabled" {
+		t.Fatalf("disabled op: %v", err)
+	}
+	// Owner-floor operations can never be disabled.
+	if err := p.Set("members.add", RuleNobody); !core.Is(err, core.ErrInvalidInput) {
+		t.Fatal("owner-floor op disabled")
+	}
+	if p.Authorize("members.add", owner) != nil {
+		t.Fatal("owner lost members.add")
+	}
+	// Reviewer-floor operations may be disabled and re-enabled.
+	if err := p.Set("poll.open", RuleNobody); err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := p.Set("poll.open", RuleOwner); err != nil {
+		t.Fatal(err.Error())
 	}
 	if err := p.Set("nope", RuleOwner); !core.Is(err, core.ErrNotFound) {
 		t.Fatal("unknown op set")
@@ -92,6 +106,32 @@ func TestDefineGuards(t *testing.T) {
 	expectPanic(t, func() { p.Define("Bad-Name", RuleOwner, RuleOwner) })
 	expectPanic(t, func() { p.Define("", RuleOwner, RuleOwner) })
 	expectPanic(t, func() { p.Define("x", Rule(42), RuleOwner) })
+	expectPanic(t, func() { p.Define("admin.lock", RuleNobody, RuleOwner) })
+	for _, bad := range []string{"a..b", "a._", "a.", ".a", "a.1", "_a", "a__b"} {
+		expectPanic(t, func() { p.Define(bad, RuleOwner, RuleOwner) })
+	}
+	p.Define("members.set_role", RuleOwner, RuleOwner)
+	p.Define("v2.poll_open", RuleOwner, RuleReviewer)
+	p.Define("feature.off", RuleNobody, RuleReviewer)
+}
+
+type badReader struct{}
+
+func (badReader) RoleOf(address) core.Role                  { return core.Role(7) }
+func (badReader) IsMember(address) bool                     { return true }
+func (badReader) Size() int                                 { return 1 }
+func (badReader) Snapshot(core.Role, int) ([]address, bool) { return nil, false }
+
+func TestUndefinedRoleGrantsNothing(t *testing.T) {
+	p := New(badReader{})
+	p.Define("admin", RuleOwner, RuleOwner)
+	p.Define("open", RulePublic, RulePublic)
+	if p.Authorize("admin", outsider) == nil || p.Allowed("admin", outsider) {
+		t.Fatal("undefined role passed an owner rule")
+	}
+	if p.Authorize("open", outsider) != nil {
+		t.Fatal("public op refused")
+	}
 }
 
 func TestMembershipChangesApply(t *testing.T) {

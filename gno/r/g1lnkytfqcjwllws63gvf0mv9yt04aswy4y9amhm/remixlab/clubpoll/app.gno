@@ -82,22 +82,25 @@ func setup(owner address) {
 
 // --- Membership ---
 
-// Invite lets addr join with role ("member" or "reviewer").
+// Invite lets addr join with role. Inviting a reviewer or owner also
+// requires the members.set_role permission.
 func Invite(cur realm, addr address, role string) {
 	actor := authorize(cur, opInvite)
 	r, err := core.ParseRole(role)
 	must(err)
-	if r == core.RoleOwner {
-		// Owners are appointed by an owner through SetRole, never invited by
-		// a reviewer.
+	if r > core.RoleMember {
 		must(policy.Authorize(opSetRole, actor))
 	}
 	must(members.Invite(addr, r))
 }
 
-// RevokeInvite cancels a pending invitation.
+// RevokeInvite cancels a pending invitation. Revoking an invitation for a
+// reviewer or owner also requires the members.set_role permission.
 func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
+	actor := authorize(cur, opInvite)
+	if r, ok := members.InviteRole(addr); ok && r > core.RoleMember {
+		must(policy.Authorize(opSetRole, actor))
+	}
 	must(members.RevokeInvite(addr))
 }
 
@@ -136,6 +139,19 @@ func CreatePoll(cur realm, title string, options string, durationSeconds int64) 
 	id, err := polls.Create(actor, title, strings.Split(options, optionSep), durationSeconds)
 	must(err)
 	return id
+}
+
+// CancelPoll deletes a draft poll that was never opened, freeing its slot.
+// The poll's creator may cancel it, and so may anyone allowed to open polls.
+func CancelPoll(cur realm, id uint64) {
+	ready()
+	actor := cur.Previous().Address()
+	if creator, ok := polls.Creator(id); ok && creator == actor {
+		must(policy.Authorize(opCreate, actor))
+	} else {
+		must(policy.Authorize(opOpen, actor))
+	}
+	must(polls.CancelDraft(id))
 }
 
 // OpenPoll freezes the poll's options and captures the current members as
@@ -191,6 +207,13 @@ func Polls(offset, limit int) []core.BallotView {
 func Members(offset, limit int) []core.MemberView {
 	ready()
 	return members.List(offset, clampLimit(limit))
+}
+
+// Invites returns up to limit pending invitations (at most 25) starting at
+// offset, with the role each one grants.
+func Invites(offset, limit int) []core.MemberView {
+	ready()
+	return members.Invites(offset, clampLimit(limit))
 }
 
 // RoleOf returns addr's role name.

@@ -1,17 +1,33 @@
 import { z } from "zod";
-import { RULE_ORDER, realmPathSchema, ruleSchema, type RecipeManifest, type Rule } from "./catalog.ts";
+import { RULE_ORDER, expectedPackageName, realmPathSchema, ruleSchema, type RecipeManifest, type Rule } from "./catalog.ts";
+
+/** UTF-8 length of s, the unit every Gno byte limit uses. */
+export function utf8Bytes(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
 
 /**
- * Text that ends up in a Gno string literal and on rendered pages: no
- * control characters, no lone surrogates, bounded length.
+ * Invisible or direction-changing format characters, matching
+ * core.IsHiddenFormat in the Gno core block (ZWNJ and ZWJ are allowed).
  */
-const safeText = (max: number) =>
+export const HIDDEN_FORMAT_RE = /[\u00ad\u061c\u180e\u200b\u200e\u200f\u202a-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/u;
+
+/**
+ * Text that ends up in a Gno string literal and on rendered pages: at most
+ * maxBytes UTF-8 bytes, not blank, no surrounding whitespace, no control,
+ * invisible or direction-changing characters, no lone surrogates. The Gno
+ * blocks apply the same rules (core.CheckText).
+ */
+const safeText = (maxBytes: number) =>
   z
     .string()
     .min(1)
-    .max(max)
     .refine((s) => s.isWellFormed(), "contains a lone surrogate")
-    .refine((s) => !/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u.test(s), "contains control characters");
+    .refine((s) => utf8Bytes(s) <= maxBytes, `must be at most ${maxBytes} bytes of UTF-8`)
+    .refine((s) => s.trim() !== "", "must not be blank")
+    .refine((s) => s.trim() === s, "must not start or end with whitespace")
+    .refine((s) => !/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u.test(s), "contains control characters")
+    .refine((s) => !HIDDEN_FORMAT_RE.test(s), "contains invisible or direction-changing characters");
 
 const int = (min: number, max: number) => z.number().int().min(min).max(max);
 
@@ -61,12 +77,23 @@ const RESERVED_IDENTS = new Set([
   "false", "iota", "nil", "append", "cap", "clear", "close", "complex", "copy", "delete", "imag", "len", "make",
   "max", "min", "new", "panic", "print", "println", "real", "recover", "address", "realm", "cross", "cur", "id",
   "actor", "answers", "core", "entries", "forms", "members", "membership", "policies", "policy", "render", "strconv",
-  "strings", "time",
+  "strings", "time", "err", "ok", "authorize", "must", "ready", "setup", "init", "ballot", "ballots", "polls", "main", "url",
 ]);
 
-/** Whether name can be a Gno package name. */
+/**
+ * Whether name can be a generated app's package name: gnovm's rePkgName
+ * (at least two characters), an identifier the path rules also accept, not
+ * a keyword, not "main" and not a "_test" package.
+ */
 export function isPackageName(name: string): boolean {
-  return /^[a-z][a-z0-9_]{0,63}$/.test(name) && !GO_KEYWORDS.has(name);
+  return (
+    /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name) &&
+    name.length >= 2 &&
+    name.length <= 64 &&
+    !GO_KEYWORDS.has(name) &&
+    name !== "main" &&
+    !name.endsWith("_test")
+  );
 }
 
 /** Whether name can be a form field name (and generated parameter name). */
@@ -121,6 +148,14 @@ function checkForm(form: FormConfig, ctx: z.RefinementCtx, maxTitleBytes = 2048)
       ctx.addIssue({ code: "custom", path: [...at, "choices"], message: "choices must be distinct" });
     }
   });
+  const minPayload = form.fields.reduce((n, f) => n + (f.required ? minAnswerBytes(f) : 0), 0);
+  if (minPayload > form.maxPayloadBytes) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["form", "maxPayloadBytes"],
+      message: `the required fields need at least ${minPayload} bytes`,
+    });
+  }
   const title = form.fields.find((f) => f.name === form.titleField);
   if (!title || title.kind !== "text" || !title.required || title.multiline) {
     ctx.addIssue({ code: "custom", path: ["form", "titleField"], message: "must name a required single-line text field" });
@@ -130,6 +165,19 @@ function checkForm(form: FormConfig, ctx: z.RefinementCtx, maxTitleBytes = 2048)
       path: ["form", "titleField"],
       message: `the title field may be at most ${maxTitleBytes} bytes in this recipe`,
     });
+  }
+}
+
+/** The shortest answer a required field accepts, in bytes. */
+function minAnswerBytes(f: FormField): number {
+  switch (f.kind) {
+    case "text":
+      return 1;
+    case "integer":
+      if (f.min <= 0 && f.max >= 0) return 1;
+      return f.min > 0 ? String(f.min).length : String(f.max).length;
+    case "choice":
+      return Math.min(...f.choices.map(utf8Bytes));
   }
 }
 
@@ -180,8 +228,8 @@ export type ContestConfig = z.infer<typeof contestConfigSchema>;
 const appSchema = z.strictObject({
   /** Final realm path. Drafts may use a placeholder namespace. */
   pkgPath: realmPathSchema.refine(
-    (p) => isPackageName(p.slice(p.lastIndexOf("/") + 1)),
-    "the last path element must be a valid package name (lowercase, not a Go keyword)",
+    (p) => isPackageName(expectedPackageName(p)),
+    "the app name (the last path element, or the one before a /vN suffix) must be a valid package name: lowercase letters, digits and single underscores, at least two characters, not a keyword, not main and not ending in _test",
   ),
   title: safeText(60),
 });
@@ -192,7 +240,7 @@ const recipeRef = <T extends string>(id: T) =>
 const projectBase = {
   schemaVersion: z.literal(1),
   app: appSchema,
-  network: z.string().min(1).max(32),
+  network: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/, "expected a network profile id"),
 };
 
 export const clubPollProjectSchema = z.strictObject({
@@ -231,6 +279,10 @@ export type ParseResult<T> = { ok: true; value: T } | { ok: false; diagnostics: 
 
 /** Parses an untrusted project document. Unknown fields are rejected. */
 export function parseProject(input: unknown): ParseResult<ProjectSpec> {
+  const proto = findProtoKey(input, "");
+  if (proto !== undefined) {
+    return { ok: false, diagnostics: [{ path: proto, message: '"__proto__" is not allowed as a key' }] };
+  }
   const id = (input as { recipe?: { id?: unknown } } | null)?.recipe?.id;
   const schema = typeof id === "string" && Object.hasOwn(PROJECT_SCHEMAS, id)
     ? PROJECT_SCHEMAS[id as keyof typeof PROJECT_SCHEMAS]
@@ -244,6 +296,18 @@ export function parseProject(input: unknown): ParseResult<ProjectSpec> {
     ok: false,
     diagnostics: r.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
   };
+}
+
+/** Path of the first own "__proto__" key, which schemas would drop silently. */
+function findProtoKey(v: unknown, path: string): string | undefined {
+  if (v === null || typeof v !== "object") return undefined;
+  for (const k of Object.keys(v)) {
+    const p = path === "" ? k : `${path}.${k}`;
+    if (k === "__proto__") return p;
+    const found = findProtoKey((v as Record<string, unknown>)[k], p);
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 /**
@@ -264,6 +328,9 @@ export function checkRules(spec: ProjectSpec, recipe: RecipeManifest): Diagnosti
       out.push({ path: `config.rules.${o.op}`, message: "missing rule" });
     } else if (ruleRank(rule) < ruleRank(o.floor)) {
       out.push({ path: `config.rules.${o.op}`, message: `may not be more permissive than "${o.floor}"` });
+    } else if (o.floor === "owner" && rule === "nobody") {
+      // policies.Define panics on this, so the realm could not be deployed.
+      out.push({ path: `config.rules.${o.op}`, message: "owner-level operations cannot be disabled" });
     }
   }
   return out;

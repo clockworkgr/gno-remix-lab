@@ -188,7 +188,7 @@ func TestPolicyFloors(cur realm, t *testing.T) {
 	// Closing submissions entirely is allowed.
 	testing.SetRealm(testing.NewUserRealm(owner))
 	SetRule(cross(cur), "entry.submit", "nobody")
-	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: entry.submit requires nobody", func() {
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: entry.submit is disabled", func() {
 		Submit(cross(cur), "a", "y", "Tool", "", "")
 	})
 }

@@ -10,13 +10,12 @@
   ],
   "requires": [],
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1",
+  "sourceDigest": "sha256:2af9900f711b00954e02804e5ddd631da4917bae62ddb1d5cfdb326b5b8491af",
   "packages": {
     "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/render/v1"
   },
   "dependencies": [],
-  "componentDependencies": [
-    "core"
-  ],
+  "componentDependencies": [],
   "stateOwner": "none",
   "license": "Apache-2.0",
   "maintainer": "Remix Lab maintainers (placeholder namespace)",

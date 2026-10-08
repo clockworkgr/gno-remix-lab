@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import { bundleDigest, canonicalJson, checkRules, configDigest, parseProject } from "@remixlab/spec";
-import { loadCatalog } from "@remixlab/spec/node";
+import { bundleDigest, canonicalJson, checkRules, configDigest, normalizeGnomod, parseProject } from "@remixlab/spec";
+import { loadCatalog, readRuntimeFiles } from "@remixlab/spec/node";
 
 const root = join(import.meta.dirname, "../../..");
 const catalog = loadCatalog(join(root, "catalog"));
@@ -21,6 +21,8 @@ describe("canonicalJson", () => {
     expect(() => canonicalJson({ x: Number.NaN })).toThrow();
     expect(() => canonicalJson({ x: "\ud800" })).toThrow(/surrogate/);
     expect(() => canonicalJson({ x: new Date(0) })).toThrow(/plain objects/);
+    expect(() => canonicalJson({ x: [1, , 3] })).toThrow(/holes/);
+    expect(() => canonicalJson({ ["\ud800"]: 1 })).toThrow(/surrogate/);
   });
 });
 
@@ -30,6 +32,26 @@ describe("bundleDigest", () => {
     expect(bundleDigest({ "b.gno": "y", "a.gno": "x" })).toBe(a);
     expect(bundleDigest({ "a.gno": "x", "b.gno": "y " })).not.toBe(a);
     expect(bundleDigest({ "a.gno": "xb.gno\n1\ny" })).not.toBe(a);
+  });
+  it("refuses names that could make two bundles hash alike", () => {
+    expect(() => bundleDigest({ "a\n1\nx\nb": "y" })).toThrow(/invalid file name/);
+    expect(() => bundleDigest({ "../x.gno": "y" })).toThrow(/invalid file name/);
+  });
+  it("hashes gnomod.toml as the chain stores it", () => {
+    const local = 'module = "gno.land/r/a/app"\ngno = "0.9"\n';
+    const stamped = 'module = "gno.land/r/a/app"\ngno = "0.9"\n\n[addpkg]\n  creator = "g1x"\n  height = 232982\n';
+    expect(normalizeGnomod(stamped)).toBe(local);
+    expect(bundleDigest({ "gnomod.toml": stamped, "a.gno": "x" })).toBe(bundleDigest({ "gnomod.toml": local, "a.gno": "x" }));
+    expect(bundleDigest({ "gnomod.toml": 'module = "gno.land/r/a/other"\ngno = "0.9"\n' })).not.toBe(
+      bundleDigest({ "gnomod.toml": local }),
+    );
+    expect(() => normalizeGnomod("[addpkg]\nmodule = \"x\"\n")).toThrow();
+  });
+});
+
+describe("catalog source digests", () => {
+  it.each([...catalog.components.values()].map((c) => [c.id, c] as const))("%s matches its source", (_, c) => {
+    expect(bundleDigest(readRuntimeFiles(join(root, c.source))), "run pnpm regen:fixtures").toBe(c.sourceDigest);
   });
 });
 
@@ -185,6 +207,90 @@ describe("checkRules", () => {
     p.config.membership.joinMode = "open";
     expect(checkRules(parse(p), recipe)).toEqual([
       { path: "config.rules.members.invite", message: "not an operation of this recipe configuration" },
+    ]);
+  });
+});
+
+describe("schema matches what the Gno blocks accept", () => {
+  const dir = () => JSON.parse(readFileSync(join(root, "catalog/recipes/examples/community-directory.default.json"), "utf8"));
+  const paths = (r: ReturnType<typeof parseProject>) => (r.ok ? [] : [...new Set(r.diagnostics.map((d) => d.path))]);
+
+  it("limits labels and choices by UTF-8 bytes, not characters", () => {
+    const ok = dir();
+    ok.config.form.fields[0].label = "项".repeat(26) + "ab"; // 80 bytes
+    expect(parseProject(ok).ok).toBe(true);
+    const p = dir();
+    p.config.form.fields[0].label = "é".repeat(41); // 41 chars, 82 bytes
+    p.config.form.fields[2].choices[0] = "选".repeat(30); // 90 bytes
+    expect(paths(parseProject(p)).sort()).toEqual(["config.form.fields.0.label", "config.form.fields.2.choices.0"]);
+  });
+
+  it("rejects blank, padded, invisible and direction-changing text", () => {
+    for (const title of ["   ", " Poll", "Poll ", "Po‮ll", "Po​ll", "﻿Poll"]) {
+      const p = defaultProject();
+      p.app.title = title;
+      expect(paths(parseProject(p)), JSON.stringify(title)).toEqual(["app.title"]);
+    }
+    const p = defaultProject();
+    p.app.title = "Club 👨‍👩 poll";
+    expect(parseProject(p).ok).toBe(true);
+  });
+
+  it("accepts only realm paths and package names the VM accepts", () => {
+    const ns = "gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm";
+    for (const good of [`${ns}/poll`, `${ns}/club_poll`, `${ns}/poll/v2`, "gno.land/r/my-team/poll2"]) {
+      const p = defaultProject();
+      p.app.pkgPath = good;
+      expect(parseProject(p).ok, good).toBe(true);
+    }
+    for (const bad of [
+      `${ns}/a`, `${ns}/poll_`, `${ns}/a__b`, `${ns}/foo_test`, `${ns}/main`, `${ns}/my-app`, `${ns}/123`,
+      `${ns}/_x`, "gno.land/r/poll", `${ns}//poll`, `${ns}/Poll`, `gno.land/p/x/poll`,
+    ]) {
+      const p = defaultProject();
+      p.app.pkgPath = bad;
+      expect(paths(parseProject(p)), bad).toEqual(["app.pkgPath"]);
+    }
+  });
+
+  it("refuses field names that would shadow generated identifiers", () => {
+    for (const name of ["must", "err", "authorize", "ready", "setup", "ok", "url", "ballot", "init"]) {
+      const p = dir();
+      p.config.form.fields[4].name = name;
+      expect(paths(parseProject(p)), name).toEqual(["config.form.fields.4.name"]);
+    }
+  });
+
+  it("requires a payload limit that fits the required fields", () => {
+    const p = dir();
+    p.config.form.maxPayloadBytes = 3; // name, link (1 each) + shortest category "Tool" (4)
+    expect(paths(parseProject(p))).toEqual(["config.form.maxPayloadBytes"]);
+    p.config.form.maxPayloadBytes = 6;
+    expect(parseProject(p).ok).toBe(true);
+  });
+
+  it("rejects __proto__ keys instead of dropping them", () => {
+    const p = JSON.parse(JSON.stringify(defaultProject()).replace('"rules":{', '"rules":{"__proto__":"public",'));
+    expect(paths(parseProject(p))).toEqual(["config.rules.__proto__"]);
+  });
+
+  it("rejects a network id that is not a profile id", () => {
+    const p = defaultProject();
+    p.network = "Local Dev";
+    expect(paths(parseProject(p))).toEqual(["network"]);
+  });
+});
+
+describe("checkRules: owner-level operations", () => {
+  it("cannot be disabled", () => {
+    const p = parseProject(
+      JSON.parse(JSON.stringify(defaultProject()).replace('"policy.set":"owner"', '"policy.set":"nobody"')),
+    );
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    const recipe = catalog.recipes.get("club-poll")!;
+    expect(checkRules(p.value, recipe)).toEqual([
+      { path: "config.rules.policy.set", message: "owner-level operations cannot be disabled" },
     ]);
   });
 });

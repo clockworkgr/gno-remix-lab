@@ -63,12 +63,23 @@ export class HttpTransport implements Transport {
     } catch (e) {
       throw new TransportError(`${method}: request failed`, { cause: e });
     }
-    const text = await readLimited(res, this.limits.maxResponseBytes, method);
+    let text: string;
+    try {
+      text = await readLimited(res, this.limits.maxResponseBytes, method);
+    } catch (e) {
+      // A dropped connection, a body timeout or a non-UTF-8 body: the
+      // request may or may not have been processed.
+      if (e instanceof TransportError) throw e;
+      throw new TransportError(`${method}: reading the response failed`, { cause: e });
+    }
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch {
       throw new TransportError(`${method}: HTTP ${res.status}, response is not JSON`);
+    }
+    if (isObject(body) && body.id !== id && body.id !== String(id)) {
+      throw new TransportError(`${method}: response id does not match the request`);
     }
     return parseEnvelope(body, method);
   }

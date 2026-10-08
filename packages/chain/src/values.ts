@@ -99,7 +99,9 @@ function decodeValue(tv: unknown, s: Schema, path: string, budget: { left: numbe
     case "int": {
       const code = s.bits === 32 ? PRIM.int32 : s.bits === 64 ? PRIM.int64 : PRIM.int;
       expectPrim(t, code, path);
-      return safeNumber(decodeN(optString(tv.N, path), true), path);
+      const n = decodeN(optString(tv.N, path), true);
+      // gnovm stores an int32 in the low 4 bytes of N; the high bytes are 0.
+      return s.bits === 32 ? Number(BigInt.asIntN(32, n)) : safeNumber(n, path);
     }
     case "uint64":
       expectPrim(t, PRIM.uint64, path);

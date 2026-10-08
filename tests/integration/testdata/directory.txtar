@@ -1,5 +1,5 @@
 # Community directory on a real in-memory node: submit a project, reject
-# invalid fields, approve it, list it publicly and paginate.
+# invalid fields, approve it, list it publicly and enforce per-address limits.
 
 loadpkg gno.land/p/nt/avl/v0
 
@@ -71,14 +71,25 @@ gnokey query vm/qrender --data 'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9a
 stdout 'This entry was rejected'
 ! stdout 'Spam'
 
-# Paginate: fill a second page of accepted entries.
+# Per-address limit: alice has three live entries (1 accepted, A and B
+# pending), so a fourth is refused until a reviewer rejects one of them.
 gnokey maketx call -pkgpath gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory -func Submit -args 'A' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
-stdout OK!
+stdout '\(3 uint64\)'
 gnokey maketx call -pkgpath gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory -func Submit -args 'B' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
-stdout OK!
+stdout '\(4 uint64\)'
 ! gnokey maketx call -pkgpath gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory -func Submit -args 'C' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
 stderr 'submission limit reached for this address'
-gnokey query vm/qeval --data 'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory.Queue(0, 25)'
-stdout 'A'
+gnokey maketx call -pkgpath gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory -func Reject -args 4 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test reviewer
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory -func Submit -args 'C' -args 'y' -args Tool -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice
+stdout '\(5 uint64\)'
+
+# The review queue holds exactly the pending entries, in ID order.
+gnokey query vm/qeval_json --data 'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory.Queue(0, 25)'
+stdout '"value": ?"A".*"value": ?"C"'
+! stdout '"value": ?"B"'
+
+# An out-of-range page clamps to the last page. (Paging across pages is
+# covered by directory_test.gno with 31 entries.)
 gnokey query vm/qrender --data 'gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/directory:entries?page=9'
 stdout 'Gno Boards'

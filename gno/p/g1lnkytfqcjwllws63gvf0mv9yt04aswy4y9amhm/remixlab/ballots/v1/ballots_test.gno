@@ -199,10 +199,54 @@ func TestCreateValidation(t *testing.T) {
 	mustFail(t, err, core.ErrInvalidInput)
 	_, err = b.Create(alice, "Q", []string{"a", "b"}, 1)
 	mustFail(t, err, core.ErrInvalidInput)
-	_, err = b.Create(alice, "Q", []string{"a", "b"}, 100)
+	_, err = b.Create(address("x"), "Q", []string{"a", "b"}, 100)
+	mustFail(t, err, core.ErrInvalidInput)
+	_, err = b.Create(alice, "Q", []string{"a", "b\u202e"}, 100)
+	mustFail(t, err, core.ErrInvalidInput)
+	id, err := b.Create(alice, "Q", []string{"a", "b"}, 100)
 	mustOK(t, err)
 	_, err = b.Create(alice, "Q", []string{"a", "b"}, 100)
 	mustFail(t, err, core.ErrLimitExceeded)
+	if c, ok := b.Creator(id); !ok || c != alice {
+		t.Fatal("creator")
+	}
+}
+
+func TestActiveCapAndCancel(t *testing.T) {
+	b := newBox(func(c *Config) { c.MaxBallots = 1 })
+	d, _ := b.Create(alice, "Draft", []string{"a", "b"}, 100)
+	_, err := b.Create(bob, "Blocked", []string{"a", "b"}, 100)
+	mustFail(t, err, core.ErrLimitExceeded)
+
+	// A cancelled draft frees its slot and disappears.
+	mustOK(t, b.CancelDraft(d))
+	if _, ok := b.Ballot(d); ok || b.Active() != 0 {
+		t.Fatal("draft not removed")
+	}
+	mustFail(t, b.CancelDraft(d), core.ErrNotFound)
+
+	// Finalized ballots no longer count toward the cap.
+	id, err := b.Create(bob, "Q", []string{"a", "b"}, 100)
+	mustOK(t, err)
+	mustOK(t, b.OpenWithElectorate(id, t0, []address{alice}))
+	mustFail(t, b.CancelDraft(id), core.ErrInvalidState)
+	_, err = b.Create(bob, "Blocked", []string{"a", "b"}, 100)
+	mustFail(t, err, core.ErrLimitExceeded)
+	_, err = b.Finalize(id, t0+100)
+	mustOK(t, err)
+	_, err = b.Create(bob, "Next", []string{"a", "b"}, 100)
+	mustOK(t, err)
+	if b.Count() != 2 || b.Active() != 1 {
+		t.Fatal("counts")
+	}
+}
+
+func TestOpeningTimeChecked(t *testing.T) {
+	b := newBox(nil)
+	id, _ := b.Create(alice, "Q", []string{"a", "b"}, 100)
+	mustFail(t, b.OpenPublic(id, 0), core.ErrInvalidInput)
+	mustFail(t, b.OpenWithElectorate(id, int64(^uint64(0)>>1)-10, []address{alice}), core.ErrInvalidInput)
+	mustOK(t, b.OpenPublic(id, t0))
 }
 
 func TestElectorateBounds(t *testing.T) {
@@ -211,7 +255,11 @@ func TestElectorateBounds(t *testing.T) {
 	mustFail(t, b.OpenWithElectorate(id, t0, nil), core.ErrInvalidInput)
 	mustFail(t, b.OpenWithElectorate(id, t0, []address{alice, bob, carol}), core.ErrLimitExceeded)
 	mustFail(t, b.OpenWithElectorate(id, t0, []address{alice, address("x")}), core.ErrInvalidInput)
-	mustOK(t, b.OpenWithElectorate(id, t0, []address{alice, bob}))
+	// Duplicates count once.
+	mustOK(t, b.OpenWithElectorate(id, t0, []address{alice, alice, bob, bob}))
+	if v, _ := b.Ballot(id); v.ElectorateSize != 2 {
+		t.Fatal("electorate size")
+	}
 }
 
 func TestViewIsInert(t *testing.T) {

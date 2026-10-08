@@ -136,7 +136,7 @@ func renderRules() string {
 	}
 	return render.Heading(1, "Rules") +
 		render.Table([]string{"Operation", "Who may", "Most permissive allowed"}, rows) +
-		"Up to 100 submissions, at most 3 per address. Review decisions are final." + "\n"
+		"Up to 100 pending or accepted submissions, at most 3 per address. Review decisions are final; rejecting an entry frees its slot." + "\n"
 }
 
 func notFound() string {

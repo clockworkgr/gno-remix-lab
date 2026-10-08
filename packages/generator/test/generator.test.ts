@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { isFieldName } from "@remixlab/spec";
 import { loadCatalog } from "@remixlab/spec/node";
 import { exportProject, generate, gnoString, type Generated } from "@remixlab/generator";
 
@@ -39,9 +40,40 @@ describe("generate", () => {
   ])("reproduces the checked-in %s realm byte for byte", (name, g) => {
     const out = g();
     const dir = join(root, "gno/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab", name);
-    for (const [file, content] of Object.entries({ ...out.runtime, ...out.tests })) {
+    const files = { ...out.runtime, ...out.tests };
+    for (const [file, content] of Object.entries(files)) {
       expect(readFileSync(join(dir, file), "utf8"), file).toBe(content);
     }
+    // Nothing else lives there except the hand-written adversarial tests.
+    expect(readdirSync(dir).sort()).toEqual([...Object.keys(files), `${name}_test.gno`].sort());
+  });
+
+  // Form fields become Submit parameters. A field named like an identifier
+  // the generated package declares or imports would shadow it, so every
+  // lowercase identifier the templates emit must be refused as a field name.
+  it.each([
+    ["clubpoll", () => gen()],
+    ["clubpoll, open", () => gen((p) => ((p.config.membership.joinMode = "open"), delete p.config.rules["members.invite"]))],
+    ["directory", () => genDir()],
+    ["contest", () => genContest()],
+    ["contest, public", () => genContest((p) => (p.config.contest.eligibility = "public"))],
+  ])("reserves every package-level identifier of the %s templates", (_, g) => {
+    const out = g();
+    const names = new Set<string>();
+    for (const src of Object.values(out.runtime)) {
+      for (const m of src.matchAll(/^func (?:\([^)]*\) )?([a-z]\w*)\(/gm)) names.add(m[1]!);
+      for (const m of src.matchAll(/^(?:const|var|type) ([a-z]\w*)/gm)) names.add(m[1]!);
+      for (const block of src.matchAll(/^(?:const|var) \(([\s\S]*?)^\)/gm)) {
+        for (const m of block[1]!.matchAll(/^\t([a-z]\w*)\b/gm)) names.add(m[1]!);
+      }
+      for (const m of src.matchAll(/^(?:\t|import )"([^"]+)"$/gm)) {
+        names.add(m[1]!.replace(/\/v\d+$/, "").split("/").pop()!);
+      }
+    }
+    // Locals of the function whose parameters are form fields.
+    for (const n of ["actor", "id", "err", "cur"]) names.add(n);
+    const allowed = [...names].filter(isFieldName);
+    expect(allowed).toEqual([]);
   });
 
   it("is deterministic and independent of key order in the input", () => {

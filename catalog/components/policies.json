@@ -12,6 +12,7 @@
     "membership.read/v1"
   ],
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1",
+  "sourceDigest": "sha256:30a4bd9806f1ce0fa438f83b4611e59bed64f63e2e5ce4a595ab15244e9d3c6a",
   "packages": {
     "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/policies/v1"
   },

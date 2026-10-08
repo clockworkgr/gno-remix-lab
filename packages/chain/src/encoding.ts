@@ -31,6 +31,11 @@ export function base64ToUtf8(s: string): string {
   return new TextDecoder("utf-8", { fatal: true }).decode(base64ToBytes(s));
 }
 
+/** Like base64ToUtf8, but invalid UTF-8 becomes U+FFFD instead of an error. */
+export function base64ToUtf8Lossy(s: string): string {
+  return new TextDecoder("utf-8").decode(base64ToBytes(s));
+}
+
 /** A transaction hash: 32 bytes. Accepts base64 (JSON-RPC) or hex. */
 export class TxHash {
   readonly bytes: Uint8Array;
@@ -40,6 +45,13 @@ export class TxHash {
   }
   static fromBase64(s: string): TxHash {
     return new TxHash(base64ToBytes(s));
+  }
+  /** The hash a node assigns to signed transaction bytes: sha256(tx). */
+  static async ofTx(tx: Uint8Array): Promise<TxHash> {
+    return new TxHash(new Uint8Array(await crypto.subtle.digest("SHA-256", tx as BufferSource)));
+  }
+  equals(o: TxHash): boolean {
+    return this.bytes.every((b, i) => b === o.bytes[i]);
   }
   static fromHex(s: string): TxHash {
     const h = s.startsWith("0x") ? s.slice(2) : s;

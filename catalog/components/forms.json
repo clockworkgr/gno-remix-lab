@@ -10,6 +10,7 @@
   ],
   "requires": [],
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/forms/v1",
+  "sourceDigest": "sha256:b0fa3db6cec49659d841843dccbf6662a9e4d30bcc9dc8d98343e0d35b1bf7a6",
   "packages": {
     "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/forms/v1"
   },

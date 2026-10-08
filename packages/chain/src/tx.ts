@@ -2,9 +2,9 @@
 // successful result: mempool acceptance is "pending", a lookup that finds
 // nothing is "unknown", and a timeout never triggers re-signing.
 
-import { base64ToUtf8, TxHash } from "./encoding.ts";
+import { base64ToBytes, base64ToUtf8Lossy, TxHash } from "./encoding.ts";
 import { chainErrorFrom, type ChainError } from "./query.ts";
-import { isObject, RpcError, type Transport } from "./rpc.ts";
+import { isObject, RpcError, TransportError, type Transport } from "./rpc.ts";
 
 export type TxOutcome =
   /** Accepted by the node's mempool check; not yet in a block. */
@@ -28,12 +28,16 @@ export function normalizeBroadcast(result: unknown): TxOutcome {
   return { status: "pending", hash };
 }
 
-/** Normalizes a `tx` lookup result. */
-export function normalizeTxResult(result: unknown): TxOutcome {
+/**
+ * Normalizes a `tx` lookup result. With expected, a result for any other
+ * transaction is refused rather than reported.
+ */
+export function normalizeTxResult(result: unknown, expected?: TxHash): TxOutcome {
   if (!isObject(result) || typeof result.hash !== "string" || !isObject(result.tx_result)) {
     throw new TypeError("tx: malformed result");
   }
   const hash = TxHash.fromBase64(result.hash);
+  if (expected && !hash.equals(expected)) throw new TypeError("tx: result is for a different transaction");
   const r = result.tx_result;
   const base = r.ResponseBase;
   if (!isObject(base)) throw new TypeError("tx: missing ResponseBase");
@@ -49,18 +53,39 @@ export function normalizeTxResult(result: unknown): TxOutcome {
   return {
     status: "committed-success",
     ...common,
-    data: typeof base.Data === "string" ? base64ToUtf8(base.Data) : "",
+    // Realm return values are usually text; never fail a committed success
+    // over bytes that are not.
+    data: typeof base.Data === "string" ? base64ToUtf8Lossy(base.Data) : "",
     events: Array.isArray(base.Events) ? base.Events : [],
   };
 }
 
+/**
+ * Broadcasts signed transaction bytes. The hash is computed locally first,
+ * so the caller can always track the transaction: a transport failure
+ * yields "unknown" (it may still be included) and a duplicate yields
+ * "pending", never an error that invites signing again.
+ */
 export async function broadcastSync(rpc: Transport, txBase64: string): Promise<TxOutcome> {
-  return normalizeBroadcast(await rpc.call("broadcast_tx_sync", { tx: txBase64 }));
+  const hash = await TxHash.ofTx(base64ToBytes(txBase64));
+  let result: unknown;
+  try {
+    result = await rpc.call("broadcast_tx_sync", { tx: txBase64 });
+  } catch (e) {
+    if (e instanceof TransportError) return { status: "unknown", hash };
+    if (e instanceof RpcError && /already exists in cache/i.test(`${e.message} ${e.data ?? ""}`)) {
+      return { status: "pending", hash };
+    }
+    throw e;
+  }
+  const out = normalizeBroadcast(result);
+  if (out.hash && !out.hash.equals(hash)) throw new TypeError("broadcast: node reported a different hash");
+  return out.status === "rejected" ? { ...out, hash } : out;
 }
 
 export async function lookupTx(rpc: Transport, hash: TxHash): Promise<TxOutcome> {
   try {
-    return normalizeTxResult(await rpc.call("tx", { hash: hash.base64 }));
+    return normalizeTxResult(await rpc.call("tx", { hash: hash.base64 }), hash);
   } catch (e) {
     if (e instanceof RpcError && /could not find tx/i.test(e.data ?? e.message)) return { status: "unknown", hash };
     throw e;
@@ -85,7 +110,7 @@ export const DEFAULT_TRACK: TrackOptions = { intervalMs: 2_000, maxIntervalMs: 1
  * errors during polling are retried; the result is never inferred from them.
  */
 export async function trackTx(rpc: Transport, hash: TxHash, opts: TrackOptions = DEFAULT_TRACK): Promise<TxOutcome> {
-  const sleep = opts.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  const sleep = opts.sleep ?? ((ms) => abortableSleep(ms, opts.signal));
   const now = opts.now ?? Date.now;
   const deadline = now() + opts.timeoutMs;
   let interval = opts.intervalMs;
@@ -99,8 +124,24 @@ export async function trackTx(rpc: Transport, hash: TxHash, opts: TrackOptions =
     }
     if (now() + interval > deadline) return { status: "unknown", hash };
     await sleep(interval);
+    opts.signal?.throwIfAborted();
     interval = Math.min(interval * 2, opts.maxIntervalMs);
   }
+}
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(signal!.reason);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function safeInt(v: unknown, what: string): number {

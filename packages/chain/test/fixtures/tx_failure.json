@@ -4,19 +4,19 @@
     "jsonrpc": "2.0",
     "method": "tx",
     "params": {
-      "hash": "Wc4HrZGKLSPb54Yvk23SEj8cboOVjVVebKmXA4NspIQ="
+      "hash": "dFy+srml7Jlk4GzAdP8dnRjJkLMoNK5bVCnbEC8obWo="
     }
   },
   "response": {
     "id": 1,
     "jsonrpc": "2.0",
     "result": {
-      "hash": "Wc4HrZGKLSPb54Yvk23SEj8cboOVjVVebKmXA4NspIQ=",
-      "height": "15",
+      "hash": "dFy+srml7Jlk4GzAdP8dnRjJkLMoNK5bVCnbEC8obWo=",
+      "height": "12",
       "index": 0,
-      "tx": "CosBCgovdm0ubV9jYWxsEn0KKGcxNWh3N2F5bXEwM2dzbGU4ZnlkbnA4M210bGMwNmtoNW14YzBzemEiRWduby5sYW5kL3IvZzFsbmt5dGZxY2p3bGx3czYzZ3ZmMG12OXl0MDRhc3d5NHk5YW1obS9yZW1peGxhYi9jbHVicG9sbCoEVm90ZTIBMTIBMBITCIC0iRMSDDEwMDAwMDB1Z25vdBqoAQo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQIYlESRDw+TYIDDA7T4kSxtkcid/E/dDqAl/PkxEfWJJhJALk+8RTLeYQYmM6HqnagNI+BY4v5TdwIPUesZl7WY9l5Fn0d30jeUpWPayk/oL3ZS0i5TmjQDn+mr8eYjHT1T/BooZzFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFsdXV4ZQ==",
+      "tx": "CosBCgovdm0ubV9jYWxsEn0KKGcxYWVhOWpqazY4dnp6eDZnd21yajVhNDZxbTAzd3dtNGRudGs3OG0iRWduby5sYW5kL3IvZzFsbmt5dGZxY2p3bGx3czYzZ3ZmMG12OXl0MDRhc3d5NHk5YW1obS9yZW1peGxhYi9jbHVicG9sbCoEVm90ZTIBMTIBMBITCIC0iRMSDDEwMDAwMDB1Z25vdBqoAQo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQLnbSz4+hrSPIDmqhTAmBvR1E+iq5VIBd9NiTuHSUqsJRJAnHX3lKvZAvNAavOqtCyMKJ7Ccc1N8bGfpcAw7GjHXK5s+m7DVmc1Mi9ghS+zeD/bCjJHmqHAPJgYA2wvfuiZThooZzFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFsdXV4ZQ==",
       "tx_result": {
-        "GasUsed": "7266579",
+        "GasUsed": "7392656",
         "GasWanted": "20000000",
         "ResponseBase": {
           "Data": null,
@@ -26,7 +26,7 @@
           },
           "Events": null,
           "Info": "vm.version=develop",
-          "Log": "msg:0,success:false,log:--= Error =--\nData: errors.FmtError{format:\"remix: unauthorized: not in the electorate\", args:[]interface {}(nil)}\nMsg Traces:\n    0  gno/tm2/pkg/errors/errors.go:103 - VM panic: remix: unauthorized: not in the electorate\nStacktrace:\npanic: remix: unauthorized: not in the electorate\nmust at gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll/app.gno:54\nVote at gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll/app.gno:155\n\n\nStack Trace:\n    0  gno/tm2/pkg/errors/errors.go:88\n    1  gno/tm2/pkg/errors/errors.go:103\n    2  gno/gno.land/pkg/sdk/vm/keeper.go:1453\n    3  gno/gno.land/pkg/sdk/vm/keeper.go:1426\n    4  toolchain/runtime/panic.go:783\n... 27 more lines elided,events:[]"
+          "Log": "msg:0,success:false,log:--= Error =--\nData: errors.FmtError{format:\"remix: unauthorized: not in the electorate\", args:[]interface {}(nil)}\nMsg Traces:\n    0  gno/tm2/pkg/errors/errors.go:103 - VM panic: remix: unauthorized: not in the electorate\nStacktrace:\npanic: remix: unauthorized: not in the electorate\nmust at gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll/app.gno:54\nVote at gno.land/r/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/clubpoll/app.gno:171\n\n\nStack Trace:\n    0  gno/tm2/pkg/errors/errors.go:88\n    1  gno/tm2/pkg/errors/errors.go:103\n    2  gno/gno.land/pkg/sdk/vm/keeper.go:1453\n    3  gno/gno.land/pkg/sdk/vm/keeper.go:1426\n    4  toolchain/runtime/panic.go:783\n... 27 more lines elided,events:[]"
         }
       }
     }

@@ -38,10 +38,15 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 
+# exists succeeds only when the node positively reports the package. Any
+# failure (network, RPC error) counts as "not deployed"; addpkg then
+# simulates first, so a package that does exist makes the script stop
+# rather than deploy twice.
 exists() {
   local data
-  data=$(printf %s "gno.land/$1" | base64)
-  curl -s "${REMOTE}/abci_query?path=%22vm/qfile%22&data=%22${data}%22" | grep -q '"Error": null'
+  data=$(printf %s "gno.land/$1" | base64 | tr -d '\n')
+  curl -sS --max-time 20 "${REMOTE}/abci_query?path=%22vm/qfile%22&data=%22${data}%22" 2>/dev/null |
+    grep -Eq '"Error": ?null'
 }
 
 read -rsp "Password for key ${KEY}: " PASSWORD
@@ -56,6 +61,7 @@ for p in "${PKGS[@]}"; do
   mkdir -p "$dir"
   find "$root/gno/$p" -maxdepth 1 -type f \( -name '*.gno' -o -name gnomod.toml \) \
     ! -name '*_test.gno' ! -name '*_filetest.gno' -exec cp {} "$dir/" \;
+  [ -f "$dir/gnomod.toml" ] || { echo "missing $root/gno/$p/gnomod.toml" >&2; exit 1; }
   echo "deploy gno.land/$p"
   printf '%s\n' "$PASSWORD" | "$GNOKEY" maketx addpkg \
     -pkgdir "$dir" -pkgpath "gno.land/$p" \

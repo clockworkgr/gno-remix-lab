@@ -5,6 +5,8 @@ export interface LockedComponent {
   version: string;
   pkgPath: string;
   source: string;
+  /** bundleDigest the package at pkgPath must have. */
+  sourceDigest: string;
   lifecycle: Lifecycle;
 }
 
@@ -48,6 +50,16 @@ export function resolve(spec: ProjectSpec, catalog: Catalog): ResolveResult {
   if (!network.verified) {
     warnings.push({ path: "network", message: `${network.id} has not passed the compatibility suite yet` });
   }
+  if (recipe.lifecycle === "deprecated") {
+    warnings.push({ path: "recipe.id", message: `recipe ${recipe.id}@${recipe.version} is deprecated` });
+  }
+  if (recipe.lifecycle === "draft") {
+    if (!network.allowDraftComponents) {
+      errors.push({ path: "recipe.id", message: `recipe ${recipe.id}@${recipe.version} is a draft and cannot be used on ${network.id}` });
+    } else {
+      warnings.push({ path: "recipe.id", message: `recipe ${recipe.id}@${recipe.version} is a draft release` });
+    }
+  }
 
   errors.push(...checkRules(spec, recipe));
 
@@ -65,9 +77,20 @@ export function resolve(spec: ProjectSpec, catalog: Catalog): ResolveResult {
   };
   for (const ref of recipe.components) visit(ref.id, "recipe.components");
 
+  // Every interface a component requires must be provided inside the set.
+  const provided = new Set([...closure.values()].flatMap((c) => c.provides));
+  for (const c of closure.values()) {
+    for (const iface of c.requires) {
+      if (!provided.has(iface)) {
+        errors.push({ path: `components.${c.id}`, message: `${c.id} requires ${iface}, which no component in this recipe provides` });
+      }
+    }
+  }
+
   const components: LockedComponent[] = [];
   const thirdParty = new Set<string>();
-  for (const c of [...closure.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+  // Code-unit order, so the lockfile does not depend on the machine's locale.
+  for (const c of [...closure.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
     const at = `components.${c.id}`;
     if (c.lifecycle === "withdrawn") errors.push({ path: at, message: `${c.id} has been withdrawn from new compositions` });
     if (c.lifecycle === "deprecated") warnings.push({ path: at, message: `${c.id}@${c.catalogVersion} is deprecated` });
@@ -78,7 +101,7 @@ export function resolve(spec: ProjectSpec, catalog: Catalog): ResolveResult {
         warnings.push({ path: at, message: `${c.id}@${c.catalogVersion} is a draft release` });
       }
     }
-    const pkgPath = c.packages[network.id];
+    const pkgPath = Object.hasOwn(c.packages, network.id) ? c.packages[network.id] : undefined;
     if (!pkgPath) {
       errors.push({ path: at, message: `${c.id}@${c.catalogVersion} is not published on ${network.id}` });
       continue;
@@ -89,12 +112,20 @@ export function resolve(spec: ProjectSpec, catalog: Catalog): ResolveResult {
       }
       thirdParty.add(dep);
     }
-    components.push({ id: c.id, version: c.catalogVersion, pkgPath, source: c.source, lifecycle: c.lifecycle });
+    components.push({
+      id: c.id,
+      version: c.catalogVersion,
+      pkgPath,
+      source: c.source,
+      sourceDigest: c.sourceDigest,
+      lifecycle: c.lifecycle,
+    });
   }
 
   if (errors.length > 0) return { ok: false, diagnostics: errors };
 
-  const supported = network.verified && components.every((c) => c.lifecycle === "reviewed" || c.lifecycle === "published");
+  const releasable = (l: Lifecycle) => l === "reviewed" || l === "published";
+  const supported = network.verified && releasable(recipe.lifecycle) && components.every((c) => releasable(c.lifecycle));
   return {
     ok: true,
     value: {

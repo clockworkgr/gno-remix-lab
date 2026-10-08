@@ -4,8 +4,14 @@
 //
 // Lifecycle: Create (draft) -> Open (options, rules and electorate freeze;
 // the deadline starts) -> Finalize (any caller, once the deadline passed).
-// Early closure is not supported. Deadlines are only evaluated when a
-// transaction or read happens; nothing closes a ballot automatically.
+// A draft can be cancelled, which removes it. Early closure of an open
+// ballot is not supported. Deadlines are only evaluated when a transaction
+// or read happens; nothing closes a ballot automatically.
+//
+// MaxBallots bounds ballots that are not finalized (drafts and open
+// ballots), so finalized history never blocks new ballots. Public ballots
+// bound neither voters nor votes; each voter pays for their own vote's
+// storage and nothing iterates over votes.
 //
 // Like every Remix Lab block, a *Box must stay in an unexported host-realm
 // variable. The host authenticates callers and passes their address; the Box
@@ -30,7 +36,7 @@ const (
 // Config is fixed at construction. Each ballot copies the rules it depends
 // on when it is created, so they never change underneath an open ballot.
 type Config struct {
-	MaxBallots     int
+	MaxBallots     int // drafts plus open ballots at any one time
 	MaxOptions     int
 	MaxElectorate  int
 	QuorumPercent  int   // 0..100, of the captured electorate
@@ -108,6 +114,7 @@ type Box struct {
 	cfg     Config
 	ballots *avl.Tree // zero-padded id -> *ballot
 	nextID  uint64
+	active  int // drafts plus open ballots
 }
 
 // NewBox creates an empty box. It panics on invalid configuration.
@@ -121,13 +128,20 @@ func NewBox(cfg Config) *Box {
 // Config returns the box configuration.
 func (b *Box) Config() Config { return b.cfg }
 
-// Count returns the number of ballots.
+// Count returns the number of ballots, finalized ones included.
 func (b *Box) Count() int { return b.ballots.Size() }
 
-// Create adds a draft ballot. Options are copied.
+// Active returns the number of drafts and open ballots.
+func (b *Box) Active() int { return b.active }
+
+// Create adds a draft ballot. Options are copied. creator must be the
+// authenticated caller.
 func (b *Box) Create(creator address, title string, options []string, duration int64) (uint64, error) {
-	if b.ballots.Size() >= b.cfg.MaxBallots {
-		return 0, core.Errorf(core.ErrLimitExceeded, "too many ballots")
+	if !creator.IsValid() {
+		return 0, core.Errorf(core.ErrInvalidInput, "invalid creator")
+	}
+	if b.active >= b.cfg.MaxBallots {
+		return 0, core.Errorf(core.ErrLimitExceeded, "too many active ballots")
 	}
 	if err := core.CheckText("title", title, 1, b.cfg.MaxTitleBytes, false); err != nil {
 		return 0, err
@@ -167,7 +181,28 @@ func (b *Box) Create(creator address, title string, options []string, duration i
 		counts:       make([]int, len(opts)),
 		winner:       -1,
 	})
+	b.active++
 	return id, nil
+}
+
+// CancelDraft removes a ballot that was never opened. The host must have
+// authorized the actor.
+func (b *Box) CancelDraft(id uint64) error {
+	if _, err := b.draft(id); err != nil {
+		return err
+	}
+	b.ballots.Remove(key(id))
+	b.active--
+	return nil
+}
+
+// Creator returns the address that created ballot id.
+func (b *Box) Creator(id uint64) (address, bool) {
+	bl := b.get(id)
+	if bl == nil {
+		return "", false
+	}
+	return bl.creator, true
 }
 
 // OpenWithElectorate opens a draft ballot restricted to voters. The list is
@@ -177,11 +212,11 @@ func (b *Box) OpenWithElectorate(id uint64, now int64, voters []address) error {
 	if err != nil {
 		return err
 	}
+	if err := bl.checkOpenTime(now); err != nil {
+		return err
+	}
 	if len(voters) == 0 {
 		return core.Errorf(core.ErrInvalidInput, "empty electorate")
-	}
-	if len(voters) > b.cfg.MaxElectorate {
-		return core.Errorf(core.ErrLimitExceeded, "electorate too large")
 	}
 	el := avl.NewTree()
 	for _, v := range voters {
@@ -189,6 +224,9 @@ func (b *Box) OpenWithElectorate(id uint64, now int64, voters []address) error {
 			return core.Errorf(core.ErrInvalidInput, "invalid voter address")
 		}
 		el.Set(v.String(), true)
+		if el.Size() > b.cfg.MaxElectorate {
+			return core.Errorf(core.ErrLimitExceeded, "electorate too large")
+		}
 	}
 	bl.electorate = el
 	bl.open(now)
@@ -204,6 +242,9 @@ func (b *Box) OpenPublic(id uint64, now int64) error {
 	}
 	if bl.quorum != 0 {
 		return core.Errorf(core.ErrInvalidState, "public ballots cannot use a percentage quorum")
+	}
+	if err := bl.checkOpenTime(now); err != nil {
+		return err
 	}
 	bl.public = true
 	bl.open(now)
@@ -256,6 +297,7 @@ func (b *Box) Finalize(id uint64, now int64) (core.BallotView, error) {
 	}
 	bl.outcome, bl.winner = bl.compute()
 	bl.status = core.BallotFinalized
+	b.active--
 	return bl.view(), nil
 }
 
@@ -287,8 +329,8 @@ func (b *Box) HasVoted(id uint64, voter address) bool {
 	return bl != nil && bl.votes != nil && bl.votes.Has(voter.String())
 }
 
-// Eligible reports whether voter may vote on an open ballot right now,
-// ignoring the deadline.
+// Eligible reports whether voter belongs to an open ballot's electorate. It
+// ignores the deadline and whether voter has already voted.
 func (b *Box) Eligible(id uint64, voter address) bool {
 	bl := b.get(id)
 	return bl != nil && bl.status == core.BallotOpen && bl.eligible(voter)
@@ -318,6 +360,16 @@ func (b *Box) draft(id uint64) (*ballot, error) {
 		return nil, core.Errorf(core.ErrInvalidState, "ballot already opened")
 	}
 	return bl, nil
+}
+
+// checkOpenTime rejects clocks that are unset or would overflow the
+// deadline.
+func (bl *ballot) checkOpenTime(now int64) error {
+	const maxInt64 = int64(^uint64(0) >> 1)
+	if now <= 0 || now > maxInt64-bl.duration {
+		return core.Errorf(core.ErrInvalidInput, "invalid opening time")
+	}
+	return nil
 }
 
 func (bl *ballot) open(now int64) {

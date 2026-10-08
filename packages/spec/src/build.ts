@@ -7,6 +7,7 @@ import {
   type NetworkProfile,
   type RecipeManifest,
 } from "./catalog.ts";
+import { RECIPE_IDS } from "./project.ts";
 
 export interface RawCatalog {
   components: unknown[];
@@ -23,8 +24,14 @@ export function buildCatalog(raw: RawCatalog): Catalog {
     for (const dep of c.componentDependencies) {
       if (!components.has(dep)) throw new Error(`component ${c.id}: unknown dependency ${dep}`);
     }
+    for (const net of Object.keys(c.packages)) {
+      if (!networks.has(net)) throw new Error(`component ${c.id}: package listed for unknown network ${net}`);
+    }
   }
   for (const r of recipes.values()) {
+    if (!(RECIPE_IDS as readonly string[]).includes(r.id)) {
+      throw new Error(`recipe ${r.id}: no project schema for this recipe`);
+    }
     for (const ref of r.components) {
       const c = components.get(ref.id);
       if (!c) throw new Error(`recipe ${r.id}: unknown component ${ref.id}`);

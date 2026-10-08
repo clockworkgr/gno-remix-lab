@@ -68,7 +68,7 @@ function literal(a: ReadArg): string {
   switch (typeof a) {
     case "string":
       if (!a.isWellFormed()) throw new TypeError("string argument contains a lone surrogate");
-      return JSON.stringify(a); // JSON string escapes are valid Gno escapes
+      return gnoQuote(a);
     case "number":
       if (!Number.isSafeInteger(a)) throw new TypeError(`not a safe integer: ${a}`);
       return String(a);
@@ -80,6 +80,23 @@ function literal(a: ReadArg): string {
       if (!ADDRESS.test(a.address)) throw new TypeError(`invalid address ${a.address}`);
       return JSON.stringify(a.address);
   }
+}
+
+/**
+ * A Gno string literal using only printable ASCII: everything else is a
+ * \\u or \\U escape, so no character (a byte order mark, a bidi control)
+ * can upset the expression parser.
+ */
+function gnoQuote(s: string): string {
+  let out = '"';
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    if (ch === '"' || ch === "\\") out += "\\" + ch;
+    else if (cp >= 0x20 && cp < 0x7f) out += ch;
+    else if (cp <= 0xffff) out += "\\u" + cp.toString(16).padStart(4, "0");
+    else out += "\\U" + cp.toString(16).padStart(8, "0");
+  }
+  return out + '"';
 }
 
 export interface ChainReaderOptions {

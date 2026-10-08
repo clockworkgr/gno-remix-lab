@@ -9,7 +9,8 @@ export interface MsgCall {
   max_deposit: string;
   pkg_path: string;
   func: string;
-  args: string[];
+  /** Omitted when empty, as the chain's amino JSON (`args,omitempty`) does. */
+  args?: string[];
 }
 
 export interface MsgAddPackage {
@@ -22,21 +23,22 @@ export interface MsgAddPackage {
 
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/;
 const REALM_PATH = /^gno\.land\/r\/[a-z0-9_]+(\/[a-z0-9_]+)*$/;
-const COINS = /^(\d+[a-z][a-z0-9/]{2,127})?(,\d+[a-z][a-z0-9/]{2,127})*$/;
+const COIN = /^([1-9][0-9]*)([a-z][a-z0-9/]{2,127})$/;
 
 export function msgCall(m: { caller: string; pkgPath: string; func: string; args: string[]; send?: string; maxDeposit?: string }): MsgCall {
   if (!ADDRESS.test(m.caller)) throw new TypeError("invalid caller address");
   if (!REALM_PATH.test(m.pkgPath)) throw new TypeError("calls target /r/ realms");
   if (!/^[A-Z][A-Za-z0-9_]{0,63}$/.test(m.func)) throw new TypeError("invalid function name");
-  return {
+  const msg: MsgCall = {
     "@type": "/vm.m_call",
     caller: m.caller,
     send: coins(m.send ?? ""),
     max_deposit: coins(m.maxDeposit ?? ""),
     pkg_path: m.pkgPath,
     func: m.func,
-    args: [...m.args],
   };
+  if (m.args.length > 0) msg.args = [...m.args];
+  return msg;
 }
 
 /**
@@ -56,7 +58,7 @@ export function msgAddPackage(m: {
   if (!/^[a-z][a-z0-9_]{0,63}$/.test(m.packageName)) throw new TypeError("invalid package name");
   const names = Object.keys(m.files).sort();
   for (const n of names) {
-    const runtime = n === "gnomod.toml" || (n.endsWith(".gno") && !n.endsWith("_test.gno"));
+    const runtime = n === "gnomod.toml" || (n.endsWith(".gno") && !n.endsWith("_test.gno") && !n.endsWith("_filetest.gno"));
     if (!runtime || !/^[A-Za-z0-9_.-]+$/.test(n)) throw new TypeError(`${n} is not a runtime file`);
   }
   if (!names.includes("gnomod.toml") || !names.some((n) => n.endsWith(".gno"))) {
@@ -71,7 +73,19 @@ export function msgAddPackage(m: {
   };
 }
 
+/**
+ * Validates a std.Coins string the way the chain does: positive amounts
+ * without leading zeros, denominations strictly increasing (sorted, no
+ * duplicates). "" is the empty set.
+ */
 function coins(s: string): string {
-  if (!COINS.test(s)) throw new TypeError(`invalid coins ${s}`);
+  if (s === "") return s;
+  let prev = "";
+  for (const part of s.split(",")) {
+    const m = COIN.exec(part);
+    if (!m) throw new TypeError(`invalid coins ${s}`);
+    if (prev !== "" && m[2]! <= prev) throw new TypeError(`coins must be sorted by denomination without duplicates: ${s}`);
+    prev = m[2]!;
+  }
   return s;
 }

@@ -10,6 +10,7 @@
   ],
   "requires": [],
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1",
+  "sourceDigest": "sha256:cd2e5f56fbe0aeb3a0c8863860e936ba5aa36e72f04c68661eb04b2993fd9817",
   "packages": {
     "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/ballots/v1"
   },

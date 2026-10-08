@@ -95,11 +95,13 @@ func ParseRole(s string) (Role, error) {
 }
 
 // CheckText validates user-supplied text: valid UTF-8, between minBytes and
-// maxBytes long, and free of control characters other than newline when
-// multiline is set. It does not escape; rendering is the render block's job.
+// maxBytes long, not blank when minBytes > 0, and free of control
+// characters (other than newline when multiline is set) and of invisible or
+// direction-changing format characters (see IsHiddenFormat). It does not
+// escape; rendering is the render block's job.
 func CheckText(field, s string, minBytes, maxBytes int, multiline bool) error {
-	if len(s) < minBytes {
-		if minBytes == 1 {
+	if len(s) < minBytes || (minBytes > 0 && strings.TrimSpace(s) == "") {
+		if minBytes == 1 || len(s) >= minBytes {
 			return Errorf(ErrInvalidInput, field+" is required")
 		}
 		return Errorf(ErrInvalidInput, field+" is too short")
@@ -117,6 +119,30 @@ func CheckText(field, s string, minBytes, maxBytes int, multiline bool) error {
 		if r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) || r == 0x2028 || r == 0x2029 {
 			return Errorf(ErrInvalidInput, field+" contains control characters")
 		}
+		if IsHiddenFormat(r) {
+			return Errorf(ErrInvalidInput, field+" contains invisible or direction-changing characters")
+		}
 	}
 	return nil
+}
+
+// IsHiddenFormat reports whether r is an invisible or direction-changing
+// format character that could make text display differently from its
+// content: soft hyphen, Arabic letter mark, Mongolian vowel separator,
+// zero-width space, LRM/RLM, bidi embeddings, overrides and isolates,
+// invisible operators, the byte order mark and interlinear annotations.
+// ZWNJ and ZWJ (U+200C, U+200D) are allowed because several scripts and
+// emoji sequences need them.
+func IsHiddenFormat(r rune) bool {
+	switch {
+	case r == 0x00ad, r == 0x061c, r == 0x180e, r == 0x200b, r == 0x200e, r == 0x200f, r == 0xfeff:
+		return true
+	case r >= 0x202a && r <= 0x202e:
+		return true
+	case r >= 0x2060 && r <= 0x206f:
+		return true
+	case r >= 0xfff9 && r <= 0xfffb:
+		return true
+	}
+	return false
 }

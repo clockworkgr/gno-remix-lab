@@ -229,3 +229,84 @@ func TestDescriptor(t *testing.T) {
 	uassert.Equal(t, "club-poll", d.Recipe)
 	uassert.Equal(t, core.ViewSchemaVersion, d.ViewSchemaVersion)
 }
+
+func TestInvitedOwnerCanBeRemoved(cur realm, t *testing.T) {
+	reset()
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Invite(cross(cur), alice, "owner")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Join(cross(cur))
+	uassert.Equal(t, "owner", RoleOf(alice))
+	// Two owners are counted, so either can remove the other once.
+	testing.SetRealm(testing.NewUserRealm(owner))
+	RemoveMember(cross(cur), alice)
+	uassert.Equal(t, "none", RoleOf(alice))
+	uassert.AbortsWithMessage(t, cur, "remix: invalid state: cannot remove the last owner", func() {
+		Leave(cross(cur))
+	})
+}
+
+func TestReviewerCannotEscalate(cur realm, t *testing.T) {
+	reset()
+	testing.SetRealm(testing.NewUserRealm(owner))
+	SetRule(cross(cur), "members.invite", "reviewer")
+	Invite(cross(cur), alice, "reviewer")
+	Invite(cross(cur), latecomer, "owner")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Join(cross(cur))
+
+	// A reviewer may invite members and revoke member invitations...
+	Invite(cross(cur), bob, "member")
+	RevokeInvite(cross(cur), bob)
+	// ...but not create reviewers or owners, or cancel an owner's invitation.
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.set_role requires owner", func() {
+		Invite(cross(cur), mallory, "reviewer")
+	})
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: members.set_role requires owner", func() {
+		RevokeInvite(cross(cur), latecomer)
+	})
+	invites := Invites(0, 25)
+	uassert.Equal(t, 1, len(invites))
+	uassert.Equal(t, latecomer, invites[0].Address)
+	uassert.Equal(t, int(core.RoleOwner), int(invites[0].Role))
+}
+
+func TestCancelDraftPoll(cur realm, t *testing.T) {
+	reset()
+	testing.SetRealm(testing.NewUserRealm(owner))
+	SetRule(cross(cur), "poll.create", "reviewer")
+	Invite(cross(cur), alice, "reviewer")
+	Invite(cross(cur), bob, "reviewer")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Join(cross(cur))
+	testing.SetRealm(testing.NewUserRealm(bob))
+	Join(cross(cur))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	id := CreatePoll(cross(cur), "Draft", "a|b", 3600)
+	// Another reviewer who may not open polls cannot cancel it.
+	testing.SetRealm(testing.NewUserRealm(bob))
+	uassert.AbortsWithMessage(t, cur, "remix: unauthorized: poll.open requires owner", func() {
+		CancelPoll(cross(cur), id)
+	})
+	// The creator can.
+	testing.SetRealm(testing.NewUserRealm(alice))
+	CancelPoll(cross(cur), id)
+	_, ok := Poll(id)
+	uassert.False(t, ok)
+
+	// An owner may cancel any draft, even with poll creation disabled.
+	id = CreatePoll(cross(cur), "Orphan", "a|b", 3600)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	SetRule(cross(cur), "poll.create", "nobody")
+	CancelPoll(cross(cur), id)
+	SetRule(cross(cur), "poll.create", "owner")
+
+	// Opened polls cannot be cancelled, even by an owner.
+	testing.SetRealm(testing.NewUserRealm(owner))
+	id = CreatePoll(cross(cur), "Live", "a|b", 3600)
+	OpenPoll(cross(cur), id)
+	uassert.AbortsWithMessage(t, cur, "remix: invalid state: ballot already opened", func() {
+		CancelPoll(cross(cur), id)
+	})
+}

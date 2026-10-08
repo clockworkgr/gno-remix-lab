@@ -11,6 +11,7 @@
   ],
   "requires": [],
   "source": "gno/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/membership/v1",
+  "sourceDigest": "sha256:2547f0055285b0db6defa24f95c2cbf94a9b572812bdc520683bedd374e0d002",
   "packages": {
     "local-dev": "gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/membership/v1"
   },

@@ -5,6 +5,10 @@
 // All answers are public chain data. Recipes should only ask for information
 // that is meant to be published.
 //
+// Capacity counts live submissions (submitted or accepted). Rejected
+// submissions stay readable for the record but free their slot, so a flood
+// of junk can always be cleared by reviewing it.
+//
 // The schema can change only while the form has no submissions; after that
 // a host must create a new Form. A *Form belongs in an unexported host-realm
 // variable, and the host authenticates submitters and reviewers.
@@ -12,6 +16,7 @@ package forms
 
 import (
 	"strconv"
+	"strings"
 
 	"gno.land/p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/remixlab/core/v1"
 	"gno.land/p/nt/avl/v0"
@@ -61,8 +66,8 @@ type Field struct {
 
 // Config bounds the form.
 type Config struct {
-	MaxSubmissions  int
-	MaxPerSubmitter int // 0 means unlimited (still bounded by MaxSubmissions)
+	MaxSubmissions  int // live (submitted or accepted) submissions
+	MaxPerSubmitter int // live submissions per address; 0 means unlimited
 	MaxPayloadBytes int // sum of answer bytes
 }
 
@@ -89,9 +94,9 @@ type submission struct {
 type Form struct {
 	cfg          Config
 	fields       []Field
-	subs         *avl.Tree // zero-padded id -> *submission
-	perSubmitter *avl.Tree // address -> int
-	byStatus     [3]int
+	subs         *avl.Tree    // zero-padded id -> *submission
+	byStatus     [3]*avl.Tree // per status: zero-padded id -> *submission
+	perSubmitter *avl.Tree    // address -> live submission count
 	nextID       uint64
 }
 
@@ -102,6 +107,9 @@ func New(cfg Config, fields []Field) *Form {
 		panic(err.Error())
 	}
 	f := &Form{cfg: cfg, subs: avl.NewTree(), perSubmitter: avl.NewTree()}
+	for i := range f.byStatus {
+		f.byStatus[i] = avl.NewTree()
+	}
 	if err := f.setFields(fields); err != nil {
 		panic(err.Error())
 	}
@@ -146,8 +154,8 @@ func (f *Form) Fields() []Field {
 }
 
 // Normalize validates answers (one per field, in schema order) and returns
-// their canonical form: integers are reformatted, absent optional answers
-// are "".
+// their canonical form: integers are reformatted, and absent optional
+// answers (including blank text) are "".
 func (f *Form) Normalize(answers []string) ([]string, error) {
 	if len(answers) != len(f.fields) {
 		return nil, core.Errorf(core.ErrInvalidInput, "expected "+strconv.Itoa(len(f.fields))+" answers")
@@ -157,7 +165,10 @@ func (f *Form) Normalize(answers []string) ([]string, error) {
 	for i, fd := range f.fields {
 		a := answers[i]
 		total += len(a)
-		if a == "" {
+		if total > f.cfg.MaxPayloadBytes {
+			return nil, core.Errorf(core.ErrLimitExceeded, "answers too large")
+		}
+		if a == "" || (fd.Kind == KindText && strings.TrimSpace(a) == "") {
 			if fd.Required {
 				return nil, core.Errorf(core.ErrInvalidInput, fd.Name+" is required")
 			}
@@ -170,6 +181,9 @@ func (f *Form) Normalize(answers []string) ([]string, error) {
 			}
 			out[i] = a
 		case KindInteger:
+			if len(a) > 21 {
+				return nil, core.Errorf(core.ErrInvalidInput, fd.Name+" must be an integer")
+			}
 			n, err := strconv.ParseInt(a, 10, 64)
 			if err != nil {
 				return nil, core.Errorf(core.ErrInvalidInput, fd.Name+" must be an integer")
@@ -185,9 +199,6 @@ func (f *Form) Normalize(answers []string) ([]string, error) {
 			out[i] = a
 		}
 	}
-	if total > f.cfg.MaxPayloadBytes {
-		return nil, core.Errorf(core.ErrLimitExceeded, "answers too large")
-	}
 	return out, nil
 }
 
@@ -197,7 +208,7 @@ func (f *Form) Submit(submitter address, answers []string) (uint64, error) {
 	if !submitter.IsValid() {
 		return 0, core.Errorf(core.ErrInvalidInput, "invalid submitter")
 	}
-	if f.subs.Size() >= f.cfg.MaxSubmissions {
+	if f.live() >= f.cfg.MaxSubmissions {
 		return 0, core.Errorf(core.ErrLimitExceeded, "form is full")
 	}
 	prev := f.submittedBy(submitter)
@@ -210,14 +221,16 @@ func (f *Form) Submit(submitter address, answers []string) (uint64, error) {
 	}
 	f.nextID++
 	id := f.nextID
-	f.subs.Set(key(id), &submission{id: id, submitter: submitter, answers: norm, status: core.SubmissionSubmitted})
+	s := &submission{id: id, submitter: submitter, answers: norm, status: core.SubmissionSubmitted}
+	f.subs.Set(key(id), s)
+	f.byStatus[core.SubmissionSubmitted].Set(key(id), s)
 	f.perSubmitter.Set(submitter.String(), prev+1)
-	f.byStatus[core.SubmissionSubmitted]++
 	return id, nil
 }
 
 // Review moves a submitted entry to accepted or rejected. Decisions are
-// final. The host must have authorized the reviewer.
+// final. Rejecting frees the entry's capacity slot and its submitter's
+// per-address slot. The host must have authorized the reviewer.
 func (f *Form) Review(id uint64, status core.SubmissionStatus) error {
 	if status != core.SubmissionAccepted && status != core.SubmissionRejected {
 		return core.Errorf(core.ErrInvalidInput, "review must accept or reject")
@@ -229,9 +242,12 @@ func (f *Form) Review(id uint64, status core.SubmissionStatus) error {
 	if s.status != core.SubmissionSubmitted {
 		return core.Errorf(core.ErrInvalidState, "submission already reviewed")
 	}
-	f.byStatus[s.status]--
+	f.byStatus[s.status].Remove(key(id))
 	s.status = status
-	f.byStatus[status]++
+	f.byStatus[status].Set(key(id), s)
+	if status == core.SubmissionRejected {
+		f.perSubmitter.Set(s.submitter.String(), f.submittedBy(s.submitter)-1)
+	}
 	return nil
 }
 
@@ -244,37 +260,26 @@ func (f *Form) Submission(id uint64) (core.SubmissionView, bool) {
 	return s.view(), true
 }
 
-// Submissions implements core.SubmissionReader. status -1 returns all.
-// Filtered paging scans at most the form's bounded submission count.
+// Submissions implements core.SubmissionReader, ordered by ID. status -1
+// returns all; any other value outside the defined statuses returns none.
+// Each status has its own index, so paging never scans other entries.
 func (f *Form) Submissions(status int, offset, limit int) []core.SubmissionView {
 	var out []core.SubmissionView
-	if offset < 0 || limit <= 0 {
+	if offset < 0 || limit <= 0 || status >= len(f.byStatus) || status < -1 {
 		return out
 	}
-	if status < 0 {
-		f.subs.IterateByOffset(offset, limit, func(_ string, v any) bool {
-			out = append(out, v.(*submission).view())
-			return false
-		})
-		return out
+	tree := f.subs
+	if status >= 0 {
+		tree = f.byStatus[status]
 	}
-	skipped := 0
-	f.subs.Iterate("", "", func(_ string, v any) bool {
-		s := v.(*submission)
-		if int(s.status) != status {
-			return false
-		}
-		if skipped < offset {
-			skipped++
-			return false
-		}
-		out = append(out, s.view())
-		return len(out) >= limit
+	tree.IterateByOffset(offset, limit, func(_ string, v any) bool {
+		out = append(out, v.(*submission).view())
+		return false
 	})
 	return out
 }
 
-// Count implements core.SubmissionReader.
+// Count implements core.SubmissionReader. It includes rejected entries.
 func (f *Form) Count() int { return f.subs.Size() }
 
 // CountByStatus returns the number of submissions in status.
@@ -282,11 +287,19 @@ func (f *Form) CountByStatus(status core.SubmissionStatus) int {
 	if status < 0 || int(status) >= len(f.byStatus) {
 		return 0
 	}
-	return f.byStatus[status]
+	return f.byStatus[status].Size()
 }
 
-// SubmittedBy returns how many submissions addr has made.
+// Config returns the form configuration.
+func (f *Form) Config() Config { return f.cfg }
+
+// SubmittedBy returns how many live (submitted or accepted) submissions
+// addr has.
 func (f *Form) SubmittedBy(addr address) int { return f.submittedBy(addr) }
+
+func (f *Form) live() int {
+	return f.byStatus[core.SubmissionSubmitted].Size() + f.byStatus[core.SubmissionAccepted].Size()
+}
 
 func (f *Form) submittedBy(addr address) int {
 	v := f.perSubmitter.Get(addr.String())
@@ -317,16 +330,29 @@ func checkField(fd Field) error {
 	if err := core.CheckText("label", fd.Label, 1, 80, false); err != nil {
 		return err
 	}
+	// Attributes of other kinds must be left at their zero values.
+	textAttrs := fd.MaxBytes != 0 || fd.Multiline
+	intAttrs := fd.Min != 0 || fd.Max != 0
+	choiceAttrs := fd.Choices != nil
 	switch fd.Kind {
 	case KindText:
+		if intAttrs || choiceAttrs {
+			return core.Errorf(core.ErrInvalidInput, fd.Name+": attributes do not match kind")
+		}
 		if fd.MaxBytes < 1 || fd.MaxBytes > HardMaxFieldBytes {
 			return core.Errorf(core.ErrInvalidInput, fd.Name+": maxBytes out of range")
 		}
 	case KindInteger:
+		if textAttrs || choiceAttrs {
+			return core.Errorf(core.ErrInvalidInput, fd.Name+": attributes do not match kind")
+		}
 		if fd.Min > fd.Max {
 			return core.Errorf(core.ErrInvalidInput, fd.Name+": min > max")
 		}
 	case KindChoice:
+		if textAttrs || intAttrs {
+			return core.Errorf(core.ErrInvalidInput, fd.Name+": attributes do not match kind")
+		}
 		if len(fd.Choices) < 2 || len(fd.Choices) > HardMaxChoices {
 			return core.Errorf(core.ErrInvalidInput, fd.Name+": choice count out of range")
 		}

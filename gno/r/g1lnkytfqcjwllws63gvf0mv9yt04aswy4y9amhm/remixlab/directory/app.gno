@@ -112,22 +112,25 @@ func Reject(cur realm, id uint64) {
 
 // --- Membership ---
 
-// Invite lets addr join with role ("member" or "reviewer").
+// Invite lets addr join with role. Inviting a reviewer or owner also
+// requires the members.set_role permission.
 func Invite(cur realm, addr address, role string) {
 	actor := authorize(cur, opInvite)
 	r, err := core.ParseRole(role)
 	must(err)
-	if r == core.RoleOwner {
-		// Owners are appointed by an owner through SetRole, never invited by
-		// a reviewer.
+	if r > core.RoleMember {
 		must(policy.Authorize(opSetRole, actor))
 	}
 	must(members.Invite(addr, r))
 }
 
-// RevokeInvite cancels a pending invitation.
+// RevokeInvite cancels a pending invitation. Revoking an invitation for a
+// reviewer or owner also requires the members.set_role permission.
 func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
+	actor := authorize(cur, opInvite)
+	if r, ok := members.InviteRole(addr); ok && r > core.RoleMember {
+		must(policy.Authorize(opSetRole, actor))
+	}
 	must(members.RevokeInvite(addr))
 }
 
@@ -197,6 +200,13 @@ func Fields() []forms.Field {
 func Members(offset, limit int) []core.MemberView {
 	ready()
 	return members.List(offset, clampLimit(limit))
+}
+
+// Invites returns up to limit pending invitations (at most 25) starting at
+// offset, with the role each one grants.
+func Invites(offset, limit int) []core.MemberView {
+	ready()
+	return members.Invites(offset, clampLimit(limit))
 }
 
 // RoleOf returns addr's role name.

@@ -1,7 +1,7 @@
 import { activeOperations, type DirectoryProject } from "@remixlab/spec";
 import { gnoInt, gnoPkgPath, gnoString } from "../gno.ts";
 import { fieldDoc, fieldLiteral, sampleAnswer } from "./formfields.ts";
-import { RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
+import { INVITE_FUNCTIONS, deniedMessage, INVITE_READS, RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
 
 type Input = RecipeInput<DirectoryProject>;
 
@@ -35,28 +35,7 @@ function app({ spec, recipe, lock }: Input): string {
     (o) => `\tpolicy.Define(${OP_CONST[o.op]!}, ${RULE_CONST[c.rules[o.op]!]}, ${RULE_CONST[o.floor]})`,
   );
 
-  const inviteFns = invitation
-    ? `
-// Invite lets addr join with role ("member" or "reviewer").
-func Invite(cur realm, addr address, role string) {
-	actor := authorize(cur, opInvite)
-	r, err := core.ParseRole(role)
-	must(err)
-	if r == core.RoleOwner {
-		// Owners are appointed by an owner through SetRole, never invited by
-		// a reviewer.
-		must(policy.Authorize(opSetRole, actor))
-	}
-	must(members.Invite(addr, r))
-}
-
-// RevokeInvite cancels a pending invitation.
-func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
-	must(members.RevokeInvite(addr))
-}
-`
-    : "";
+  const inviteFns = invitation ? INVITE_FUNCTIONS : "";
 
   return `// Package ${packageName(spec)} is a Remix Lab "${recipe.id}" app generated
 // from a project configuration. Entries are submitted through a fixed form;
@@ -218,7 +197,7 @@ func Members(offset, limit int) []core.MemberView {
 	ready()
 	return members.List(offset, clampLimit(limit))
 }
-
+${invitation ? INVITE_READS : ""}
 // RoleOf returns addr's role name.
 func RoleOf(addr address) string {
 	ready()
@@ -408,7 +387,7 @@ func notFound() string {
 function limitsNote(spec: DirectoryProject): string {
   const f = spec.config.form;
   const per = f.maxPerSubmitter > 0 ? `, at most ${f.maxPerSubmitter} per address` : "";
-  return `Up to ${f.maxSubmissions} submissions${per}. Review decisions are final.`;
+  return `Up to ${f.maxSubmissions} pending or accepted submissions${per}. Review decisions are final; rejecting an entry frees its slot.`;
 }
 
 /**
@@ -435,7 +414,7 @@ function generatedTest({ spec, lock }: Input): string {
   as(submitter);
 
   if (submitRule === "nobody") {
-    lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: entry.submit requires nobody", func() {`);
+    lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: unauthorized: entry.submit is disabled", func() {`);
     lines.push(`\t\tSubmit(cross(cur), ${args(answers)})`);
     lines.push("\t})");
   } else if (payload > c.form.maxPayloadBytes) {
@@ -452,7 +431,7 @@ function generatedTest({ spec, lock }: Input): string {
     lines.push("\tuassert.Equal(t, 0, len(Entries(0, 25)))");
 
     as("scnMallory");
-    lines.push(`\tuassert.AbortsWithMessage(t, cur, ${gnoString(`remix: unauthorized: entry.review requires ${reviewRule}`)}, func() {`);
+    lines.push(`\tuassert.AbortsWithMessage(t, cur, ${gnoString(deniedMessage("entry.review", reviewRule))}, func() {`);
     lines.push("\t\tAccept(cross(cur), id)");
     lines.push("\t})");
 
@@ -463,7 +442,8 @@ function generatedTest({ spec, lock }: Input): string {
       lines.push("\tuassert.Equal(t, int(core.SubmissionAccepted), int(v.Status))");
       lines.push("\tuassert.Equal(t, 1, len(Entries(0, 25)))");
       lines.push("\tuassert.Equal(t, 0, len(Queue(0, 25)))");
-      lines.push(`\tuassert.True(t, strings.Contains(Render("entries"), ${gnoString(answers[titleIndex]!)}))`);
+      // The accepted entry's table cell (sample answers need no escaping).
+      lines.push(`\tuassert.True(t, strings.Contains(Render("entries"), ${gnoString(` | ${answers[titleIndex]!} |`)}))`);
       lines.push(`\tuassert.AbortsWithMessage(t, cur, "remix: invalid state: submission already reviewed", func() {`);
       lines.push("\t\tReject(cross(cur), id)");
       lines.push("\t})");

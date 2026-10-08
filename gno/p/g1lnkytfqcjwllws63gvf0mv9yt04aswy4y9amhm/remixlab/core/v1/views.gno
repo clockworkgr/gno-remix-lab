@@ -16,6 +16,7 @@ type MembershipReader interface {
 	// Snapshot returns every member whose role is at least minRole, in a
 	// stable order. ok is false (and the slice nil) when more than max
 	// members qualify, so callers never act on a truncated electorate.
+	// A negative max or an invalid minRole also yields (nil, false).
 	Snapshot(minRole Role, max int) (addrs []address, ok bool)
 }
 

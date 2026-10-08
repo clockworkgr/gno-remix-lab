@@ -1,7 +1,7 @@
 import { CONTEST_MAX_TITLE_BYTES, activeOperations, type ContestProject, type Rule } from "@remixlab/spec";
 import { gnoBool, gnoInt, gnoPkgPath, gnoString } from "../gno.ts";
 import { fieldDoc, fieldLiteral, sampleAnswer } from "./formfields.ts";
-import { RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
+import { INVITE_FUNCTIONS, deniedMessage, INVITE_READS, RULE_CONST, alignConsts, descriptor, gnomod, imports, packageName, type RecipeInput } from "./common.ts";
 
 type Input = RecipeInput<ContestProject>;
 
@@ -46,28 +46,7 @@ function app({ spec, recipe, lock }: Input): string {
     (o) => `\tpolicy.Define(${OP_CONST[o.op]!}, ${RULE_CONST[c.rules[o.op]!]}, ${RULE_CONST[o.floor]})`,
   );
 
-  const inviteFns = invitation
-    ? `
-// Invite lets addr join with role ("member" or "reviewer").
-func Invite(cur realm, addr address, role string) {
-	actor := authorize(cur, opInvite)
-	r, err := core.ParseRole(role)
-	must(err)
-	if r == core.RoleOwner {
-		// Owners are appointed by an owner through SetRole, never invited by
-		// a reviewer.
-		must(policy.Authorize(opSetRole, actor))
-	}
-	must(members.Invite(addr, r))
-}
-
-// RevokeInvite cancels a pending invitation.
-func RevokeInvite(cur realm, addr address) {
-	authorize(cur, opInvite)
-	must(members.RevokeInvite(addr))
-}
-`
-    : "";
+  const inviteFns = invitation ? INVITE_FUNCTIONS : "";
 
   const openBallot = membersOnly
     ? `	electorate, ok := members.Snapshot(core.RoleMember, maxElectorate)
@@ -354,7 +333,7 @@ func Members(offset, limit int) []core.MemberView {
 	ready()
 	return members.List(offset, clampLimit(limit))
 }
-
+${invitation ? INVITE_READS : ""}
 // RoleOf returns addr's role name.
 func RoleOf(addr address) string {
 	ready()
@@ -587,7 +566,7 @@ function limitsNote(spec: ContestProject): string {
   const c = spec.config;
   const per = c.form.maxPerSubmitter > 0 ? `, at most ${c.form.maxPerSubmitter} per address` : "";
   const quorum = c.contest.quorumPercent > 0 ? ` Quorum: ${c.contest.quorumPercent}% of the electorate.` : "";
-  return `Up to ${c.form.maxSubmissions} submissions${per}; at most ${c.contest.maxEntries} admitted entries. Review decisions are final; a tie has no winner.${quorum}`;
+  return `Up to ${c.form.maxSubmissions} pending or admitted submissions${per}; at most ${c.contest.maxEntries} admitted entries. Review decisions are final; rejecting an entry frees its slot. A tie has no winner.${quorum}`;
 }
 
 const ROLE_FOR_RULE: Partial<Record<Rule, string>> = {
@@ -641,7 +620,7 @@ function generatedTest({ spec, lock }: Input): string {
 
   const scenario = (): void => {
     as(entrants[0]);
-    if (submitRule === "nobody") return aborts("remix: unauthorized: entry.submit requires nobody", `Submit(cross(cur), ${args})`);
+    if (submitRule === "nobody") return aborts("remix: unauthorized: entry.submit is disabled", `Submit(cross(cur), ${args})`);
     if (payload > c.form.maxPayloadBytes) {
       return aborts("remix: limit exceeded: answers too large", `Submit(cross(cur), ${args})`);
     }
@@ -655,7 +634,7 @@ function generatedTest({ spec, lock }: Input): string {
     lines.push(`\tSubmit(cross(cur), ${args})`);
 
     as("scnMallory");
-    aborts(`remix: unauthorized: entry.review requires ${reviewRule}`, "Accept(cross(cur), 1)");
+    aborts(deniedMessage("entry.review", reviewRule), "Accept(cross(cur), 1)");
     if (reviewRule === "nobody") return;
     as("scnOwner");
     lines.push("\tAccept(cross(cur), 1)");
@@ -663,7 +642,7 @@ function generatedTest({ spec, lock }: Input): string {
     lines.push("\tuassert.Equal(t, 2, len(Entries()))");
 
     if (openRule === "nobody") {
-      return aborts("remix: unauthorized: contest.open requires nobody", `OpenVoting(cross(cur), ${gnoInt(c.contest.minDurationSeconds)})`);
+      return aborts("remix: unauthorized: contest.open is disabled", `OpenVoting(cross(cur), ${gnoInt(c.contest.minDurationSeconds)})`);
     }
     lines.push(`\tOpenVoting(cross(cur), ${gnoInt(c.contest.minDurationSeconds)})`);
     as(entrants[0]);

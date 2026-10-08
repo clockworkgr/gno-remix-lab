@@ -93,9 +93,17 @@ export function getDraft(id: string): Draft | undefined {
   return drafts.get().find((d) => d.id === id);
 }
 
+/**
+ * A random draft ID. crypto.randomUUID exists only in secure contexts
+ * (HTTPS, localhost); getRandomValues works on plain HTTP too.
+ */
+function draftId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function newDraft(project: unknown): Draft {
   const now = new Date().toISOString();
-  const d: Draft = { id: crypto.randomUUID(), project, createdAt: now, updatedAt: now };
+  const d: Draft = { id: draftId(), project, createdAt: now, updatedAt: now };
   drafts.set([d, ...drafts.get()]);
   return d;
 }

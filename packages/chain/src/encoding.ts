@@ -3,6 +3,8 @@
 // Keep the two apart: a hash shown to users is hex, a hash sent in a JSON-RPC
 // request is base64.
 
+import { sha256 } from "@noble/hashes/sha2.js";
+
 // Works in browsers and Node alike (atob/btoa, no Buffer).
 
 export function base64ToBytes(s: string): Uint8Array {
@@ -46,9 +48,12 @@ export class TxHash {
   static fromBase64(s: string): TxHash {
     return new TxHash(base64ToBytes(s));
   }
-  /** The hash a node assigns to signed transaction bytes: sha256(tx). */
+  /**
+   * The hash a node assigns to signed transaction bytes: sha256(tx).
+   * Not crypto.subtle, which browsers only provide on HTTPS and localhost.
+   */
   static async ofTx(tx: Uint8Array): Promise<TxHash> {
-    return new TxHash(new Uint8Array(await crypto.subtle.digest("SHA-256", tx as BufferSource)));
+    return new TxHash(sha256(tx));
   }
   equals(o: TxHash): boolean {
     return this.bytes.every((b, i) => b === o.bytes[i]);

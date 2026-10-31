@@ -16,7 +16,7 @@
     "@remixlab/resolver": "workspace:*",
     "@remixlab/spec": "workspace:*",
     "@remixlab/wallet": "workspace:*",
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "marked": "18.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
